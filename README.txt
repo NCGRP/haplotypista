@@ -14,10 +14,11 @@ b 1 1 0 0 0 1 0 1 0 0 1 0 0 0 1 1 1 0 0
 c 0 1 1 1 0 1 0 1 0 1 1 0 0 0 1 0 1 0 0
 
 To compile:  use "make"
-Usage: haplotypista -i inputfile -o outputfile [-l logfile] -b blocklengthstart blocklengthend 
+Usage: haplotypista -i inputfile -o outputfile -l logfile -b blocklengthstart blocklengthend 
 where, 
 -b specifies a range of blocklengths to consider
 blocklength = length of haplotype block in number of adjacent SNPs to be combined
+-m specifies the missing data character
 
-Examples: Examples: ./haplotypista -i hin.txt -o hout.txt -l hlog.txt -b 2 4
+Examples: ./haplotypista -i hin.txt -o hout.txt -l hlog.txt -b 2 4 -m ?
 

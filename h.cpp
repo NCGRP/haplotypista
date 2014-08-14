@@ -7,8 +7,9 @@ Usage: haplotypista -i inputfile -o outputfile -l logfile -b blocklengthstart bl
 where, 
 -b specifies a range of blocklengths to consider
 blocklength = length of haplotype block in number of adjacent SNPs to be combined
+-m specifies the missing data character
 
-Examples: ./haplotypista -i hin.txt -o hout.txt -l hlog.txt -b 2 4
+Examples: ./haplotypista -i hin.txt -o hout.txt -l hlog.txt -b 2 4 -m ?
 */
 
 
@@ -27,6 +28,87 @@ vector<string> split(string const &input)
               back_inserter(ret));
     return ret;
 }
+
+vector<unsigned long long> MyVecToULL(vector<std::string> pos, unsigned long long& maxpos)
+{
+	vector<unsigned long long> ULLvec(pos.size());
+	for (unsigned long i=0;i<pos.size();++i) 
+	{
+		ULLvec[i] = strtoull(pos[i].c_str(), NULL, 10);
+		if (ULLvec[i] > maxpos) maxpos = ULLvec[i]; //calculate the maximum position value while going thru everything, update as reference
+	}
+	return ULLvec;
+}
+			
+int MyGetAlleleCount(unsigned long long h, vector<vector<int> > hapvecint)
+{
+	int curr = 0;
+	int max = curr;
+	for (unsigned int j=0;j<hapvecint.size();++j) //indiv
+	{
+		curr = hapvecint[j][h]; //get allele name for all individuals for current haplotype, the max (+1) will be the number of alleles
+		if (curr > max) max = curr;
+	}
+	return (max + 1); //number of alleles = max + 1 (since 0 is an allele)
+}
+
+double MyMean(vector<int> v)
+{
+	double sum = std::accumulate(v.begin(), v.end(), 0.0);
+	double m = sum / v.size();
+	return m;
+}
+
+double MyStdev(double m, vector<int> v)
+{
+	std::vector<double> diff(v.size());
+	std::transform(v.begin(), v.end(), diff.begin(),
+				   std::bind2nd(std::minus<double>(), m));
+	double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+	double stdev = sqrt( sq_sum / (v.size() - 1) );
+	return stdev;
+}
+
+/*double MyStdev(double m, vector<int> v)
+{
+	double accum = 0.0;
+	std::for_each ( v.begin(), v.end(), [&](const double d) {
+		accum += (d - m) * (d - m);
+	});
+	double stdev = sqrt(accum / (v.size()-1));
+	return stdev;
+}
+*/
+
+double MyMeanULL(vector<unsigned long long> v)
+{
+	double sum = std::accumulate(v.begin(), v.end(), 0.0);
+	double m = sum / v.size();
+	return m;
+}
+
+double MyStdevULL(double m, vector<unsigned long long> v)
+{
+	std::vector<double> diff(v.size());
+	std::transform(v.begin(), v.end(), diff.begin(),
+				   std::bind2nd(std::minus<double>(), m));
+	double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+	double stdev = sqrt( sq_sum / (v.size() - 1) );
+	return stdev;
+}
+
+/*double MyStdevULL(double m, vector<unsigned long long> v)
+{
+	double accum = 0.0;
+	std::for_each 
+	(	v.begin(), 
+		v.end(),
+		[&](const double d) {accum += (d - m) * (d - m);}
+	);
+	double stdev = sqrt(accum / (v.size()-1));
+	return stdev;
+}
+*/
 /*
 vector<std::string> MySetKernel(char* KerFilePath)
 {
@@ -307,48 +389,62 @@ vector<vector<std::string> > MyReadInfile(char* InFilePath)
 	return bufvec2d;
 }
 
-/*
 
-	//convert alleles to integer coding to save memory, vector access order 2
-	if (procid == 0) cout << "  Recoding data...\n";
+
+//convert alleles to integer coding to save memory, vector access order 2
+vector<vector<int> > MyRecode(vector<vector<std::string> > hapvec, std::string missingchar)
+{
+	cout << "Recoding data...\n";
+	time_t startm, endm;
 	time (&startm);
 
-	vector<vector<int> > bufvec2dint(bufvec2d.size(), vector<int>(bufvec2d[0].size())); //declare and size vector to hold new integer coded alleles
-	unsigned int iz = ColKeyToAllAlleleByPopList.size();
-	for (unsigned int i=0;i<iz;++i) //go thru each locus
+	//initialize hapvecint, the recoded data
+	vector<vector<int> > hapvecint( hapvec.size(), vector<int>((hapvec[0].size())-1) ); //declare and size vector to hold new integer coded alleles
+	
+	//unsigned int iz = ColKeyToAllAlleleByPopList.size();
+	for (unsigned int i=1;i<hapvec[0].size();++i) //go thru each locus
 	{
-		//get all alleles at the locus
 		vector<std::string> AllelesEncountered; //will contain the unique set of alleles at the locus
-		unsigned int kz = bufvec2d.size();
-		for (unsigned int k=0;k<kz;++k) //go thru all individuals
+		for (unsigned int k=0;k<hapvec.size();++k) //go thru all individuals
 		{
-			unsigned int jz = ColKeyToAllAlleleByPopList[i].size();
-			for (unsigned int j=0;j<jz;++j) //get all alleles for an individual at this locus, then move to next indiv
+			int ColIndex = i;
+			std::string a = hapvec[k][ColIndex];
+			
+			//search for missing substring
+			std::size_t found = a.find(missingchar);
+			if (found!=std::string::npos) hapvecint[k][ColIndex-1] = -9999; //add the missing data value
+			//if (a == "9999") hapvecint[k][ColIndex] = -9999; //add the missing data value
+			else
 			{
-				int ColIndex = ColKeyToAllAlleleByPopList[i][j];
-				std::string a = bufvec2d[k][ColIndex];  
-
-				if (a == "9999") bufvec2dint[k][ColIndex] = -9999; //add the missing data value
-				else
+				int AlleleInt; //the new, integerized, name of the allele
+				std::vector<std::string>::iterator itr = std::find(AllelesEncountered.begin(), AllelesEncountered.end(), a);
+				if (itr != AllelesEncountered.end()) //the allele has been found before
 				{
-					int AlleleInt; //the new, integerized, name of the allele
-					std::vector<std::string>::iterator itr = std::find(AllelesEncountered.begin(), AllelesEncountered.end(), a);
-					if (itr != AllelesEncountered.end()) //the allele has been found before
-					{
-						AlleleInt = itr - AllelesEncountered.begin(); //convert itr to index, the index is the integerized allele name
-						bufvec2dint[k][ColIndex] = AlleleInt; //add the new name
-					}
-					else // you have a new allele
-					{
-						AllelesEncountered.push_back(a); //add new allele to list of those encountered
-						AlleleInt = AllelesEncountered.size() - 1;  //calculate integerized allele name, starts at 0
-						bufvec2dint[k][ColIndex] = AlleleInt;
-					}
+			//cout << "old allele a="<<a<<"\n"; 
+
+					AlleleInt = itr - AllelesEncountered.begin(); //convert itr to index, the index is the integerized allele name
+					hapvecint[k][ColIndex-1] = AlleleInt; //add the new name
+				}
+				else // you have a new allele
+				{
+			//cout << "new allele a="<<a<<"\n"; 
+					AllelesEncountered.push_back(a); //add new allele to list of those encountered
+					AlleleInt = AllelesEncountered.size() - 1;  //calculate integerized allele name, starts at 0
+					hapvecint[k][ColIndex-1] = AlleleInt; //ColIndex-1 since hapvecint has no column for indiv id's
 				}
 			}
 		}
 	}
+	//stop the clock
+	time (&endm);
+	double dif = difftime (endm,startm);
+	if (dif==1) cout << "  " << dif << " second.\n";	
+	else cout << "  " << dif << " seconds.\n";
+
+	return hapvecint;
+}
 	
+	/*
 	//stop the clock
 	time (&endm);
 	dif = difftime (endm,startm);
@@ -690,6 +786,7 @@ int main( int argc, char* argv[] )
 	char* LogFilePath;
 	unsigned long bstart;
 	unsigned long bend; //start and end for range of block lengths
+	std::string missingchar;
 	for (int i=0;i<argc;i++)
 	{
 		if ( string(argv[i]) == "-i" ) 
@@ -711,6 +808,11 @@ int main( int argc, char* argv[] )
     	{
 		 	bstart = strtoul( argv[i+1], NULL, 10);
 		 	bend = strtoul( argv[i+2], NULL, 10);
+		}
+
+		if ( string(argv[i]) == "-m" ) 
+    	{
+		 	missingchar = argv[i+1];
 		}
 	}
 	
@@ -740,13 +842,24 @@ int main( int argc, char* argv[] )
 	//read the input file
 	vector<vector<std::string> > bufvec2d = MyReadInfile(InFilePath);
 	
-	//combine adjacent alleles into haplotypes
-	vector<vector<std::string> > hapvec; //initialize combined haplotype vector, # indiv is same as bufvec2d minus two header lines
+	//open log file
+	ofstream logger;
+	logger.open(LogFilePath);
+	logger.close(); //quick open close done to clear any existing file each time program is run
+	logger.open(LogFilePath, ios::out | ios::app); //open file in append mode
+	logger << "b	chromosome	n allele count	Mean allele count	SD allele count	n haplotype length	Mean haplotype length	SD haplotype length\n";
+	
+	//COMBINE ADJACENT ALLELES INTO HAPLOTYPES
+	vector<vector<std::string> > hapvec; //initialize combined haplotype vector
 	vector<std::string> SNPsizevec; //will contain size of newly fused SNP region
 	vector<std::string> chrvec; //will contain chromosomal location of newly fused region
 	
 	vector<std::string> chr = bufvec2d[0]; //get list of chromosome designation for each SNP
 	vector<std::string> pos = bufvec2d[1]; //get list of positions of SNPs on chromosome
+	unsigned long long maxpos = 0; //updated as reference in MyVecToUll
+	vector<unsigned long long> posull = MyVecToULL(pos, maxpos); //convert string vector to unsigned long long vector
+	vector<std::string> ind(bufvec2d.size()-2); //get list of individual id's
+	for (unsigned int i=2;i<bufvec2d.size();++i) ind[i-2] = bufvec2d[i][0];
 	
 	//cycle through range of blocklengths
 	for (unsigned int b=bstart;b<bend+1;++b)
@@ -769,9 +882,10 @@ int main( int argc, char* argv[] )
 			while (j<currindiv.size()) //j = allele index (first column is sample name)
 			{
 				string startchr = chr[j-1];//get the chromosome of the starting SNP for the fusion
-				unsigned long long startpos = strtoull( pos[j-1].c_str(), NULL, 10 ); //get start position, convert string to unsigned long long
+				//unsigned long long startpos = strtoull( pos[j-1].c_str(), NULL, 10 ); //get start position, convert string to unsigned long long
+				unsigned long long startpos = posull[j-1]; //get start position
 				unsigned long k = 0;
-				string newallele;
+				std::string newallele;
 				while ( (k < b) && (j<currindiv.size()) ) //b=blocklength
 				{
 					if (chr[j-1] == startchr) //verify that current SNP is on the same chromosome as the starting SNP for the fusion
@@ -788,9 +902,13 @@ int main( int argc, char* argv[] )
 				//do this only for individual #1, since it is the same for all
 				if (i == 2)
 				{
-					unsigned long long endpos = strtoull( pos[j-2].c_str(), NULL, 10 );//determine the end position, it is the previous SNP, (j-1)-1 = j-2
+					//unsigned long long endpos = strtoull( pos[j-2].c_str(), NULL, 10 );//determine the end position, it is the previous SNP, (j-1)-1 = j-2
+					unsigned long long endpos = posull[j-2];//determine the end position, it is the previous SNP, (j-1)-1 = j-2
 					unsigned long long SNPlen = endpos - startpos + 1;  //+1 to include the SNP position on both ends
-			
+					if ( SNPlen > maxpos ) 
+					{
+						cout << "An error has occurred. endpos="<<endpos<<", startpos="<<startpos<<", SNPlen="<<SNPlen<<"\n  SNP order may not be consecutive.";
+					}
 			
 					stringstream ss;
 					ss << SNPlen;
@@ -808,16 +926,94 @@ int main( int argc, char* argv[] )
 		}//individual
 		
 		
+		//translate concatenated binary codes into integer allele calls
+		vector<vector<int> > hapvecint = MyRecode(hapvec, missingchar);
+		
+		//WRITE LOG FILE
+		cout << "Calculating statistics...\n";
+		time_t startm, endm;
+		time (&startm);
+
+		vector<int> allelecounts(hapvecint[0].size());
+		vector<unsigned long long> sizevec(hapvecint[0].size());
+		vector<unsigned long long> sizeull = MyVecToULL(SNPsizevec, maxpos); //convert string vector to unsigned long long vector
+
+
+		//calculate mean allele counts and haplotype lengths for entire data set, log
+		//get max value for each haplotype in hapvecintj. number of alleles = max + 1 (since 0 is an allele)
+		for (unsigned int i=0;i<hapvecint[0].size();++i) //haplotypes
+		{
+			allelecounts[i] = MyGetAlleleCount(i, hapvecint); //get count of alleles at haplotype h	
+		}
+		unsigned long nac = allelecounts.size();
+		double meanac = MyMean(allelecounts);
+		double sdac = MyStdev(meanac, allelecounts);
+		unsigned long nhl = sizevec.size();
+		double meanhl;
+		double sdhl;
+		if (b == 1)
+		{
+			meanhl = 1;
+			sdhl = 0;
+		}
+		else
+		{
+			meanhl = MyMeanULL(sizeull);
+			sdhl = MyStdevULL(meanhl, sizeull);
+		}
+		logger << b << "\t" << "0" << "\t" << nac << "\t" << meanac << "\t" << sdac << "\t" << nhl << "\t" << meanhl << "\t" << sdhl << "\n"; //chrname = 0 means all chromosomes
+
+		//calculate chromosome specific means, log
+		unsigned long long h; //h indexes thru haplotypes
+		while (h != hapvecint[0].size())
+		{
+			std::string chrname = chr[h]; //get the current chromosome name
+
+			cout << "h="<<h<<", chrname="<<chrname<<"\n";
+			
+			vector<int>().swap(allelecounts); //clear allelecounts
+			allelecounts.resize( count(chr.begin(), chr.end(), chrname) ); //resize vector to number of haplotypes from chromosome chrname
+			vector<unsigned long long>().swap(sizevec); //clear sizevec
+			sizevec.resize(allelecounts.size()); //resize sizevec to same value that was calculated for allelecounts (faster than doing the count() again)
+			
+			while (chr[h] == chrname) //while current haplotype h is on chromosome chrname
+			{
+				allelecounts[h] = MyGetAlleleCount(h, hapvecint); //get count of alleles at haplotype h
+				sizevec[h] = sizeull[h]; //place size of haplotype h on chromosome chrname in a vector
+				++h;
+			}
+			//calculate mean allele counts and haplotype lengths for current chromosome chrname, log
+			nac = allelecounts.size();
+			meanac = MyMean(allelecounts);
+			sdac = MyStdev(meanac, allelecounts);
+			nhl = sizevec.size();
+			if (b==1)
+			{
+				double meanhl = 1;
+				double sdhl = 0;
+			}
+			else
+			{
+				double meanhl = MyMeanULL(sizevec);
+				double sdhl = MyStdevULL(meanhl, sizevec);
+			}
+			logger << b << "\t" << chrname << "\t" << nac << "\t" << meanac << "\t" << sdac << "\t" << nhl << "\t" << meanhl << "\t" << sdhl << "\n";
+		}
+		
+		//stop the clock
+		time (&endm);
+		double dif = difftime (endm,startm);
+		if (dif==1) cout << "  " << dif << " second.\n";	
+		else cout << "  " << dif << " seconds.\n";
+
+
+		//WRITE NEW DATA SET
 		//create the write path by appending blocklength
 		std::string OutFilePathS = OutFilePath; //char* to std::string
 		OutFilePathS += ".b";
 		stringstream ss;
 		ss << b;
 		OutFilePathS += ss.str();
-		/*char* FinalOutFilePath
-		strcat (OutFilePath, ".b");
-		strcat (OutFilePath, b);
-		*/
 		
 		//write the new data matrix to the output file
 		ofstream output;
@@ -842,19 +1038,25 @@ int main( int argc, char* argv[] )
 		output << "\n";
 	
 		//write new SNPs
-		for (unsigned long i=0;i<hapvec.size();++i)
+		for (unsigned long i=0;i<hapvecint.size();++i)
 		{
-			for (unsigned long long j=0;j<hapvec[i].size();++j)
+			stringstream ss;
+			ss << ind[i];
+			output << ss.str() << " ";
+			for (unsigned long long j=0;j<hapvecint[i].size();++j)
 			{
-				output << hapvec[i][j] << " ";
+				output << hapvecint[i][j] << " ";
 			}
 			output << "\n";
 		}
 		
 		//wrap up write step
 		output.close();
-	}//blocklength range		
 
+	}//blocklength range		
+	
+	//wrap up write to log
+	logger.close();
 	
 	return 0;
 }
