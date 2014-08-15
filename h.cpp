@@ -841,6 +841,7 @@ int main( int argc, char* argv[] )
 	
 	//read the input file
 	vector<vector<std::string> > bufvec2d = MyReadInfile(InFilePath);
+	cout << bufvec2d.size() - 2 << " individuals, " << bufvec2d[0].size() << " SNPs\n";
 	
 	//open log file
 	ofstream logger;
@@ -850,6 +851,7 @@ int main( int argc, char* argv[] )
 	logger << "b	chromosome	n allele count	Mean allele count	SD allele count	n haplotype length	Mean haplotype length	SD haplotype length\n";
 	
 	//COMBINE ADJACENT ALLELES INTO HAPLOTYPES
+	cout << "Compressing haplotypes...\n";
 	vector<vector<std::string> > hapvec; //initialize combined haplotype vector
 	vector<std::string> SNPsizevec; //will contain size of newly fused SNP region
 	vector<std::string> chrvec; //will contain chromosomal location of newly fused region
