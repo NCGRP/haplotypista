@@ -1,6 +1,6 @@
 # serial compilation
 CXX = g++
-FLAGS = -Wall
+FLAGS = -O3 -Wall
 
 # for compilation on Linux and Mac desktops:
 # 1. use mpic++ compiler, and -fopenmp directive

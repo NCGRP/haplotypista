@@ -21,4 +21,5 @@ blocklength = length of haplotype block in number of adjacent SNPs to be combine
 -m specifies the missing data character
 
 Examples: ./haplotypista -i hin.txt -o hout.txt -l hlog.txt -b 2 4 -m ?
+          ./haplotypista -i headAtSNP.txt -o hout2.txt -l hlog2.txt -b 14 55 -m ?
 
