@@ -861,8 +861,8 @@ int main( int argc, char* argv[] )
 	vector<std::string> ind(bufvec2d.size()-2); //get list of individual id's
 	for (unsigned int i=2;i<bufvec2d.size();++i) ind[i-2] = bufvec2d[i][0];
 	
-	//cycle through range of blocklengths
-	for (unsigned int b=bstart;b<bend+1;++b)
+	//cycle through range of blocklengths, backwards, since larger b values run faster
+	for (unsigned int b=bend;b>=bstart;--b)
 	{
 		vector<vector<std::string> >().swap(hapvec); //clear hapvec
 		vector<vector<std::string> > hapvec( (bufvec2d.size() - 2) ); //size hapvec, # indiv is same as bufvec2d minus two header lines
@@ -907,7 +907,7 @@ int main( int argc, char* argv[] )
 					unsigned long long SNPlen = endpos - startpos + 1;  //+1 to include the SNP position on both ends
 					if ( SNPlen > maxpos ) 
 					{
-						cout << "An error has occurred. endpos="<<endpos<<", startpos="<<startpos<<", SNPlen="<<SNPlen<<"\n  SNP order may not be consecutive.";
+						cout << "An error has occurred. endpos="<<endpos<<", startpos="<<startpos<<", SNPlen="<<SNPlen<<"\n  SNP order may not be consecutive.\n";
 					}
 			
 					stringstream ss;
@@ -936,7 +936,7 @@ int main( int argc, char* argv[] )
 
 		vector<int> allelecounts(hapvecint[0].size());
 		vector<unsigned long long> sizevec(hapvecint[0].size());
-		vector<unsigned long long> sizeull = MyVecToULL(SNPsizevec, maxpos); //convert string vector to unsigned long long vector
+		vector<unsigned long long> SNPsizevecULL = MyVecToULL(SNPsizevec, maxpos); //convert string vector to unsigned long long vector
 
 
 		//calculate mean allele counts and haplotype lengths for entire data set, log
@@ -958,30 +958,31 @@ int main( int argc, char* argv[] )
 		}
 		else
 		{
-			meanhl = MyMeanULL(sizeull);
-			sdhl = MyStdevULL(meanhl, sizeull);
+			meanhl = MyMeanULL(SNPsizevecULL);
+			sdhl = MyStdevULL(meanhl, SNPsizevecULL);
 		}
 		logger << b << "\t" << "0" << "\t" << nac << "\t" << meanac << "\t" << sdac << "\t" << nhl << "\t" << meanhl << "\t" << sdhl << "\n"; //chrname = 0 means all chromosomes
 
-		//calculate chromosome specific means, log
-		unsigned long long h; //h indexes thru haplotypes
+		//calculate chromosome specific means, log. have to use chrvec, not chr, because chr has all SNPs, not fused haplotypes
+		unsigned long long h = 0; //h indexes thru haplotypes
 		while (h != hapvecint[0].size())
 		{
-			std::string chrname = chr[h]; //get the current chromosome name
-
-			cout << "h="<<h<<", chrname="<<chrname<<"\n";
-			
+			std::string chrname = chrvec[h]; //get the current chromosome name
 			vector<int>().swap(allelecounts); //clear allelecounts
-			allelecounts.resize( count(chr.begin(), chr.end(), chrname) ); //resize vector to number of haplotypes from chromosome chrname
+			allelecounts.resize( count(chrvec.begin(), chrvec.end(), chrname) ); //resize vector to number of haplotypes from chromosome chrname
 			vector<unsigned long long>().swap(sizevec); //clear sizevec
 			sizevec.resize(allelecounts.size()); //resize sizevec to same value that was calculated for allelecounts (faster than doing the count() again)
 			
-			while (chr[h] == chrname) //while current haplotype h is on chromosome chrname
+			unsigned int z = 0;
+			while (chrvec[h] == chrname) //while current haplotype h is on chromosome chrname
 			{
-				allelecounts[h] = MyGetAlleleCount(h, hapvecint); //get count of alleles at haplotype h
-				sizevec[h] = sizeull[h]; //place size of haplotype h on chromosome chrname in a vector
+				allelecounts[z] = MyGetAlleleCount(h, hapvecint); //get count of alleles at haplotype h
+				sizevec[z] = SNPsizevecULL[h]; //place size of haplotype h on chromosome chrname in a vector
 				++h;
+				if (h == chrvec.size()) break; //get out of loop after last chromosome
+				++z;
 			}
+			
 			//calculate mean allele counts and haplotype lengths for current chromosome chrname, log
 			nac = allelecounts.size();
 			meanac = MyMean(allelecounts);
@@ -989,13 +990,13 @@ int main( int argc, char* argv[] )
 			nhl = sizevec.size();
 			if (b==1)
 			{
-				double meanhl = 1;
-				double sdhl = 0;
+				meanhl = 1;
+				sdhl = 0;
 			}
 			else
 			{
-				double meanhl = MyMeanULL(sizevec);
-				double sdhl = MyStdevULL(meanhl, sizevec);
+				meanhl = MyMeanULL(sizevec);
+				sdhl = MyStdevULL(meanhl, sizevec);
 			}
 			logger << b << "\t" << chrname << "\t" << nac << "\t" << meanac << "\t" << sdac << "\t" << nhl << "\t" << meanhl << "\t" << sdhl << "\n";
 		}
