@@ -848,7 +848,7 @@ int main( int argc, char* argv[] )
 	logger.open(LogFilePath);
 	logger.close(); //quick open close done to clear any existing file each time program is run
 	logger.open(LogFilePath, ios::out | ios::app); //open file in append mode
-	logger << "b	chromosome	n allele count	Mean allele count	SD allele count	n haplotype length	Mean haplotype length	SD haplotype length\n";
+	logger << "b	chromosome	n loci	Mean allele count	SD allele count	n haplotype length	Mean haplotype length	SD haplotype length\n";
 	
 	//COMBINE ADJACENT ALLELES INTO HAPLOTYPES
 	cout << "Compressing haplotypes...\n";
