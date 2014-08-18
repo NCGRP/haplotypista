@@ -874,7 +874,7 @@ int main( int argc, char* argv[] )
 		//cycle through SNPs, one individual at a time
 		for (unsigned long i=2;i<bufvec2d.size();++i) //start at third row
 		{
-			cout << "Individual "<<i-1<<"/"<<bufvec2d.size() - 2<<" with blocklength "<<b<<"/"<<bend<<"\n";
+			cout << bufvec2d[i][0] << ", individual "<<i-1<<"/"<<bufvec2d.size() - 2<<" with blocklength "<<b<<"/"<<bend<<"\n";
 		
 			vector<std::string> currindiv = bufvec2d[i]; //for convenience get the current indiv SNPs as a separate vector
 			hapvec[i-2].push_back(currindiv[0]); //add the indiv id to hapvec, noting correction to index i for starting on third line of bufvec2d
