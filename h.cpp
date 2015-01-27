@@ -179,7 +179,9 @@ vector<vector<int> > MyRecode(vector<vector<std::string> > hapvec, std::string m
 			
 			//search for missing substring
 			std::size_t found = a.find(missingchar);
-			if (found!=std::string::npos) hapvecint[k][ColIndex-1] = -9999; //add the missing data value
+			if (found!=std::string::npos) hapvecint[k][ColIndex-1] = -9999; //add the missing data value #this seems to put a missing value for a haplotype 
+			                                                                //that contains any missing nucleotide. this might not be the smartest way to deal with this.
+			                                                                //too conservative? --PR 1/27/14
 			//if (a == "9999") hapvecint[k][ColIndex] = -9999; //add the missing data value
 			else
 			{
