@@ -10,16 +10,24 @@ Example input file with 20 SNPs (Unix line breaks):
 1 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 3 3 3 3
 42 456 6032 6142 10054 11529 79 876 1024 1125 12058 3 24 53 657 1001 1200 5654 1000254 1000256
 a 0 1 0 0 0 1 1 1 0 0 1 1 1 0 1 0 1 0 1
-b 1 1 0 0 0 1 0 1 0 0 1 0 0 0 1 1 1 0 0
-c 0 1 1 1 0 1 0 1 0 1 1 0 0 0 1 0 1 0 0
+b 1 1 0 0 0 1 0 1 0 0 ? 0 0 0 1 1 1 0 0
+c 0 1 1 1 0 1 0 1 0 1 1 0 0 0 1 0 ? 0 0
 
 To compile:  use "make"
-Usage: haplotypista -i inputfile -o outputfile -l logfile -b blocklengthstart blocklengthend 
+Usage: haplotypista -i inputfile -o outputfile -l logfile -b blocklengthstart blocklengthend -m missingdatastring
 where, 
 -b specifies a range of blocklengths to consider
 blocklength = length of haplotype block in number of adjacent SNPs to be combined
--m specifies the missing data character
+-m specifies the missing data character in the input file (can be a string)
 
-Examples: ./haplotypista -i hin.txt -o hout.txt -l hlog.txt -b 2 4 -m ?
-          ./haplotypista -i headAtSNP.txt -o hout2.txt -l hlog2.txt -b 14 55 -m ?
+Examples: ./haplotypista -i hexin.txt -o hexout.txt -l hexlog.txt -b 2 4 -m ?
+          ./haplotypista -i AtExample.txt -o AtExout.txt -l AtExlog.txt -b 5 8 -m ?
 
+Output:
+Produces a series of output files with unique haplotypes recoded as unique integers.
+	Output files receive the suffix ".bX" where X is the block length, i.e. the number of
+	contiguous SNPs used to define the allelic state.  If a string of SNPs contains the 
+	missing data character defined with -m, the resulting haplotype is recoded as missing 
+	data, receiving the designation "-9999" in the output file.  Row 1 of the output file 
+	indicates the chromosome where the haplotype lies.  Row 2 is the length of the 
+	haplotype block, using the units in row 2 of the input file.
