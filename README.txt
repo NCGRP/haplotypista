@@ -24,10 +24,20 @@ Examples: ./haplotypista -i hexin.txt -o hexout.txt -l hexlog.txt -b 2 4 -m ?
           ./haplotypista -i AtExample.txt -o AtExout.txt -l AtExlog.txt -b 5 8 -m ?
 
 Output:
-Produces a series of output files with unique haplotypes recoded as unique integers.
-	Output files receive the suffix ".bX" where X is the block length, i.e. the number of
+Produces a series of output data sets with unique haplotypes recoded as unique integers.
+	Output data sets receive the suffix ".bX" where X is the block length, i.e. the number of
 	contiguous SNPs used to define the allelic state.  If a string of SNPs contains the 
 	missing data character defined with -m, the resulting haplotype is recoded as missing 
-	data, receiving the designation "-9999" in the output file.  Row 1 of the output file 
+	data, receiving the designation "-9999" in the output file.  Row 1 of the output data set 
 	indicates the chromosome where the haplotype lies.  Row 2 is the length of the 
 	haplotype block, using the units in row 2 of the input file.
+Also produces a log file containing summary statistics for the output data sets.  Column
+	headers are as follows:
+	b = haplotype block length
+	chromosome = chromosome number ("0" indicates all chromosomes combined)
+	n loci = number of loci used for allele count statistics
+	Mean allele count = average number of alleles across newly coded loci
+	SD allele count = standard deviation of allele count across newly coded loci
+	n haplotype length = number of recoded haplotypes used for haplotype length statistics
+	Mean haplotype length = average length of a newly coded locus
+	SD haplotype length = standard deviation in length across newly coded loci
