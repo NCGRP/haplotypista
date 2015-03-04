@@ -230,6 +230,7 @@ int main( int argc, char* argv[] )
 	unsigned long bstart;
 	unsigned long bend; //start and end for range of block lengths
 	std::string missingchar;
+	int ploidy;
 	for (int i=0;i<argc;i++)
 	{
 		if ( string(argv[i]) == "-i" ) 
@@ -256,6 +257,11 @@ int main( int argc, char* argv[] )
 		if ( string(argv[i]) == "-m" ) 
     	{
 		 	missingchar = argv[i+1];
+		}
+
+		if ( string(argv[i]) == "-p" ) 
+    	{
+		 	ploidy = atoi(argv[i+1]);
 		}
 	}
 	
@@ -284,7 +290,7 @@ int main( int argc, char* argv[] )
 	
 	//read the input file
 	vector<vector<std::string> > bufvec2d = MyReadInfile(InFilePath);
-	cout << bufvec2d.size() - 2 << " individuals, " << bufvec2d[0].size() << " SNPs\n";
+	cout << (bufvec2d.size() - 2) / ploidy << " individuals, " << bufvec2d.size() - 2 << " haplotypes, " << bufvec2d[0].size() << " SNPs, ploidy = " << ploidy << "N\n";
 	
 	//open log file
 	ofstream logger;
@@ -317,7 +323,7 @@ int main( int argc, char* argv[] )
 		//cycle through SNPs, one individual at a time
 		for (unsigned long i=2;i<bufvec2d.size();++i) //start at third row
 		{
-			cout << bufvec2d[i][0] << ", individual "<<i-1<<"/"<<bufvec2d.size() - 2<<" with blocklength "<<b<<"/"<<bend<<"\n";
+			cout << bufvec2d[i][0] << ", haplotype "<<i-1<<"/"<<bufvec2d.size() - 2<<" with blocklength "<<b<<"/"<<bend<<"\n";
 		
 			vector<std::string> currindiv = bufvec2d[i]; //for convenience get the current indiv SNPs as a separate vector
 			hapvec[i-2].push_back(currindiv[0]); //add the indiv id to hapvec, noting correction to index i for starting on third line of bufvec2d
@@ -327,7 +333,6 @@ int main( int argc, char* argv[] )
 			while (j<currindiv.size()) //j = allele index (first column is sample name)
 			{
 				string startchr = chr[j-1];//get the chromosome of the starting SNP for the fusion
-				//unsigned long long startpos = strtoull( pos[j-1].c_str(), NULL, 10 ); //get start position, convert string to unsigned long long
 				unsigned long long startpos = posull[j-1]; //get start position
 				unsigned long k = 0;
 				std::string newallele;

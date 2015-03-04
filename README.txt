@@ -7,9 +7,11 @@ where,
 -b specifies a range of blocklengths to consider
 blocklength = length of haplotype block in number of adjacent SNPs to be combined
 -m specifies the missing data character used in the input file
+-p specifies the ploidy, 1 = haploid, 2 = diploid, etc.
 
-Examples: ./haplotypista -i hexin.txt -o hexout.txt -l hexlog.txt -b 2 4 -m ?
-          ./haplotypista -i AtExample.txt -o AtExout.txt -l AtExlog.txt -b 5 8 -m ?
+Examples: ./haplotypista -i hexin.txt -o hexout.txt -l hexlog.txt -b 2 4 -m ? -p 1
+          ./haplotypista -i AtExample.txt -o AtExout.txt -l AtExlog.txt -b 5 8 -m ? -p 1
+          ./haplotypista -i PopulusExample.txt -o PopExout.txt -l PopExlog.txt -b 1 4 -m ? -p 2
 
 
 Input file format:
@@ -24,14 +26,15 @@ a 0 1 0 0 0 1 1 1 0 0 1 1 1 0 1 0 1 0 1
 b 1 1 0 0 0 1 0 1 0 0 ? 0 0 0 1 1 1 0 0
 c 0 1 1 1 0 1 0 1 0 1 1 0 0 0 1 0 ? 0 0
 
-Example input file with 10 SNPs, diploid data:
-1 1 1 1 1 14 14 3 3 3
+Example input file with 10 SNPs, phased diploid data, 2 rows per individual:
+1 1 1 1 1 2 2 3 3 3
 10003096 10003352 10003834 10004403 10004622 45319876 45754486 9689083 9689915 9737708
-ALAA-20-1 G G  A A  T C  A C  T C  C C  Z Z  A G  C C  T C
-ALAA-20-2 G G  A A  C C  A C  T C  C C  C C  A G  T C  T C
-ALAA-20-3 G G  A A  T C  A C  T C  A A  Z Z  G G  T T  C C
-ALAA-20-4 G G  A A  T C  A C  T C  C C  C C  A G  T C  C C
-ALAA-20-5 A G  A A  T C  A C  T C  C C  C C  G G  T C  T C
+ALAA-20-1 C G A T ? G C A C G
+ALAA-20-1 A T C T ? G C A C G
+ALAA-20-2 A T C T A A C A C G
+ALAA-20-2 A T A T A G C A C G
+ALAA-20-3 A T C T A G T A C G
+ALAA-20-3 A T C T A G C A C G
 
 
 Output:
