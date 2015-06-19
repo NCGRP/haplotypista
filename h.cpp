@@ -304,6 +304,7 @@ int main( int argc, char* argv[] )
 	vector<vector<std::string> > hapvec; //initialize combined haplotype vector
 	vector<std::string> SNPsizevec; //will contain size of newly fused SNP region
 	vector<std::string> chrvec; //will contain chromosomal location of newly fused region
+	vector<std::string> midptvec; //will contain the nucleotide position of the midpoint of the newly fused region
 	
 	vector<std::string> chr = bufvec2d[0]; //get list of chromosome designation for each SNP
 	vector<std::string> pos = bufvec2d[1]; //get list of positions of SNPs on chromosome
@@ -348,22 +349,38 @@ int main( int argc, char* argv[] )
 								//A truncated fusion product may remain!!
 				}
 		
-				//calculate length of SNP region fused, add to vector SNPsizevec
+				//calculate length of SNP region fused and midpoint of haplotype block, add to vectors
 				//do this only for individual #1, since it is the same for all
 				if (i == 2)
 				{
-					//unsigned long long endpos = strtoull( pos[j-2].c_str(), NULL, 10 );//determine the end position, it is the previous SNP, (j-1)-1 = j-2
 					unsigned long long endpos = posull[j-2];//determine the end position, it is the previous SNP, (j-1)-1 = j-2
 					unsigned long long SNPlen = endpos - startpos + 1;  //+1 to include the SNP position on both ends
 					if ( SNPlen > maxpos ) 
 					{
 						cout << "An error has occurred. endpos="<<endpos<<", startpos="<<startpos<<", SNPlen="<<SNPlen<<"\n  SNP order may not be consecutive.\n";
 					}
+					
+					unsigned long long midpt = startpos+(SNPlen/2);
 			
+					//add the block length to SNPsizevec
 					stringstream ss;
 					ss << SNPlen;
 					string str = ss.str();
 					SNPsizevec.push_back(str);
+					
+					//add the midpoint of the haplotype block to midptvec
+					stringstream sd;
+					sd << midpt;
+					str = sd.str();
+
+					cout << "mean: " << (SNPlen/2) << "\n";
+					cout << "floor: " << floor(SNPlen/2) << "\n";
+					cout << "midpt: " << startpos+(SNPlen/2) << "\n";
+					cout << "amidpt: " << midpt << "\n";
+					cout << "str: " << str << "\n";
+
+
+					midptvec.push_back(str);
 			
 					//make note of the chromosomal location of the new fusion product
 					chrvec.push_back(startchr);
@@ -486,6 +503,14 @@ int main( int argc, char* argv[] )
 		{
 			if (i == SNPsizevec.size() - 1) output << SNPsizevec[i];
 			else output << SNPsizevec[i] << " ";
+		}
+		output << "\n";
+
+		//write haplotype block midpoint
+		for (unsigned int i=0;i<midptvec.size();++i)
+		{
+			if (i == midptvec.size() - 1) output << midptvec[i];
+			else output << midptvec[i] << " ";
 		}
 		output << "\n";
 	

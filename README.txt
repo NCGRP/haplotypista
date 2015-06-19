@@ -44,7 +44,8 @@ Produces a series of output data sets with unique haplotypes recoded as unique i
 	missing data character defined with -m, the resulting haplotype is recoded as missing 
 	data, receiving the designation "-9999" in the output file.  Row 1 of the output data set 
 	indicates the chromosome where the haplotype lies.  Row 2 is the length of the 
-	haplotype block, using the units in row 2 of the input file.
+	haplotype block, using the units in row 2 of the input file.  Row 3 is the midpoint of
+	the haplotype block on the chromosome.
 Also produces a log file containing summary statistics for the output data sets.  Column
 	headers are as follows:
 	b = haplotype block length
