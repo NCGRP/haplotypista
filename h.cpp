@@ -372,14 +372,6 @@ int main( int argc, char* argv[] )
 					stringstream sd;
 					sd << midpt;
 					str = sd.str();
-
-					cout << "mean: " << (SNPlen/2) << "\n";
-					cout << "floor: " << floor(SNPlen/2) << "\n";
-					cout << "midpt: " << startpos+(SNPlen/2) << "\n";
-					cout << "amidpt: " << midpt << "\n";
-					cout << "str: " << str << "\n";
-
-
 					midptvec.push_back(str);
 			
 					//make note of the chromosomal location of the new fusion product
