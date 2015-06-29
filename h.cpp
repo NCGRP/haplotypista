@@ -319,6 +319,7 @@ int main( int argc, char* argv[] )
 		vector<vector<std::string> >().swap(hapvec); //clear hapvec
 		vector<vector<std::string> > hapvec( (bufvec2d.size() - 2) ); //size hapvec, # indiv is same as bufvec2d minus two header lines
 		vector<std::string>().swap(SNPsizevec); //clear SNPsizevec
+		vector<std::string>().swap(midptvec); //clear midptvec
 		vector<std::string>().swap(chrvec); //clear chrvec
 
 		//cycle through SNPs, one individual at a time
@@ -361,6 +362,8 @@ int main( int argc, char* argv[] )
 					}
 					
 					unsigned long long midpt = startpos+(SNPlen/2);
+					
+					//cout << startchr << "\t" << j << "\t" << startpos << "\t" << endpos << "\t" << SNPlen << "\t" << midpt << "\n";
 			
 					//add the block length to SNPsizevec
 					stringstream ss;
