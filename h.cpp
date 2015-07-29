@@ -263,6 +263,7 @@ int main( int argc, char* argv[] )
     	{
 		 	ploidy = atoi(argv[i+1]);
 		}
+
 	}
 	
 	//test whether all required files specified on the command line exist
@@ -273,6 +274,7 @@ int main( int argc, char* argv[] )
 		bf += InFilePath;
 		BadFiles.push_back(bf);
 	}
+
 	
 	if (BadFiles.size() > 0)
 	{
@@ -290,7 +292,14 @@ int main( int argc, char* argv[] )
 	
 	//read the input file
 	vector<vector<std::string> > bufvec2d = MyReadInfile(InFilePath);
-	cout << (bufvec2d.size() - 2) / ploidy << " individuals, " << bufvec2d.size() - 2 << " haplotypes, " << bufvec2d[0].size() << " SNPs, ploidy = " << ploidy << "N\n";
+	cout << (bufvec2d.size() - 3) / ploidy << " individuals, " << bufvec2d.size() - 3 << " haplotypes, " << bufvec2d[0].size() << " SNPs, ploidy = " << ploidy << "N\n";
+	
+	//test that header lines are equal length
+	if ( ( bufvec2d[0].size() != bufvec2d[1].size() ) || ( bufvec2d[0].size() != bufvec2d[2].size() ) || ( bufvec2d[1].size() != bufvec2d[2].size() ) )
+	{
+		cout << "\nThe first three lines of the input file do not all contain the same number of elements.  Quitting...\n\n";
+		exit (EXIT_FAILURE);
+	}
 	
 	//open log file
 	ofstream logger;
@@ -308,6 +317,7 @@ int main( int argc, char* argv[] )
 	
 	vector<std::string> chr = bufvec2d[0]; //get list of chromosome designation for each SNP
 	vector<std::string> pos = bufvec2d[1]; //get list of positions of SNPs on chromosome
+	vector<std::string> aacats = bufvec2d[2]; //get list of amino acid category of each SNP
 	unsigned long long maxpos = 0; //updated as reference in MyVecToUll
 	vector<unsigned long long> posull = MyVecToULL(pos, maxpos); //convert string vector to unsigned long long vector
 	vector<std::string> ind(bufvec2d.size()-2); //get list of individual id's
