@@ -8,12 +8,10 @@ where,
 blocklength = length of haplotype block in number of adjacent SNPs to be combined
 -m specifies the missing data character used in the input file
 -p specifies the ploidy, 1 = haploid, 2 = diploid, etc.
--a specifies the path to a file describing whether the SNP is non-genic (0), synonymous (1),
-or non-synonymous (2)
 
 Examples: ./haplotypista -i hexin.txt -o hexout.txt -l hexlog.txt -b 2 4 -m ? -p 1
           ./haplotypista -i AtExample.txt -o AtExout.txt -l AtExlog.txt -b 5 8 -m ? -p 1
-          ./haplotypista -i PopulusExample.txt -o PopExout.txt -l PopExlog.txt -b 1 4 -m ? -p 2 -a PopAAcat.txt
+          ./haplotypista -i PopulusExample.txt -o PopExout.txt -l PopExlog.txt -b 1 4 -m ? -p 2 
 
 
 Input file format:
@@ -27,9 +25,9 @@ Example input file with 20 SNPs, haploid data:
 1 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 3 3 3 3
 42 456 6032 6142 10054 11529 79 876 1024 1125 12058 3 24 53 657 1001 1200 5654 1000254 1000256
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-a 0 1 0 0 0 1 1 1 0 0 1 1 1 0 1 0 1 0 1
-b 1 1 0 0 0 1 0 1 0 0 ? 0 0 0 1 1 1 0 0
-c 0 1 1 1 0 1 0 1 0 1 1 0 0 0 1 0 ? 0 0
+a 0 1 0 0 0 1 1 1 0 0 1 1 1 0 1 0 1 0 1 0
+b 1 1 0 0 0 1 0 1 0 0 ? 0 0 0 1 1 1 0 0 0
+c 0 1 1 1 0 1 0 1 0 1 1 0 0 0 1 0 ? 0 0 1
 
 Example input file with 10 SNPs, phased diploid data, 2 rows per individual:
 1 1 1 1 1 2 2 3 3 3
@@ -54,7 +52,7 @@ Produces a series of output data sets with unique haplotypes recoded as unique i
 	haplotype block, using the units in row 2 of the input file.  Row 3 is the midpoint of
 	the haplotype block on the chromosome. Row 4 contains counts of non-genic, synonymous,
 	and non-synonymous substitutions. For example, for blocklength = 5 in above example:
-	4 0 1, 3 2 0.  In this case the first block contains 4 non-genic SNPs and 1 non-synonymous 
+	4:0:1 3:2:0.  In this case the first block contains 4 non-genic SNPs and 1 non-synonymous 
 	SNP. Block 2 contains 3 non-genic, 2 synonymous SNPs and 0 non-synonymous SNPs.
 Also produces a log file containing summary statistics for the output data sets.  Column
 	headers are as follows:

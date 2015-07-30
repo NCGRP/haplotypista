@@ -292,14 +292,16 @@ int main( int argc, char* argv[] )
 	
 	//read the input file
 	vector<vector<std::string> > bufvec2d = MyReadInfile(InFilePath);
-	cout << (bufvec2d.size() - 3) / ploidy << " individuals, " << bufvec2d.size() - 3 << " haplotypes, " << bufvec2d[0].size() << " SNPs, ploidy = " << ploidy << "N\n";
-	
+
 	//test that header lines are equal length
 	if ( ( bufvec2d[0].size() != bufvec2d[1].size() ) || ( bufvec2d[0].size() != bufvec2d[2].size() ) || ( bufvec2d[1].size() != bufvec2d[2].size() ) )
 	{
 		cout << "\nThe first three lines of the input file do not all contain the same number of elements.  Quitting...\n\n";
 		exit (EXIT_FAILURE);
 	}
+	
+	//print out stats on input file
+	cout << (bufvec2d.size() - 3) / ploidy << " individuals, " << bufvec2d.size() - 3 << " haplotypes, " << bufvec2d[0].size() << " SNPs, ploidy = " << ploidy << "N\n";
 	
 	//open log file
 	ofstream logger;
@@ -314,56 +316,70 @@ int main( int argc, char* argv[] )
 	vector<std::string> SNPsizevec; //will contain size of newly fused SNP region
 	vector<std::string> chrvec; //will contain chromosomal location of newly fused region
 	vector<std::string> midptvec; //will contain the nucleotide position of the midpoint of the newly fused region
+	vector<std::string> aacatvec; //will contain the counts of non-genic, synonymous, and non-synonymous sites contained in the fused region in the form {4 1 0, 3 0 2, 5 0 0}
 	
 	vector<std::string> chr = bufvec2d[0]; //get list of chromosome designation for each SNP
 	vector<std::string> pos = bufvec2d[1]; //get list of positions of SNPs on chromosome
-	vector<std::string> aacats = bufvec2d[2]; //get list of amino acid category of each SNP
+	vector<std::string> aacat = bufvec2d[2]; //get list of amino acid category of each SNP
+	
 	unsigned long long maxpos = 0; //updated as reference in MyVecToUll
 	vector<unsigned long long> posull = MyVecToULL(pos, maxpos); //convert string vector to unsigned long long vector
-	vector<std::string> ind(bufvec2d.size()-2); //get list of individual id's
-	for (unsigned int i=2;i<bufvec2d.size();++i) ind[i-2] = bufvec2d[i][0];
+	vector<std::string> ind(bufvec2d.size()-3); //get list of individual id's, not used until write step
+	for (unsigned int i=3;i<bufvec2d.size();++i) ind[i-3] = bufvec2d[i][0];
 	
 	//cycle through range of blocklengths, backwards, since larger b values run faster
 	for (unsigned int b=bend;b>=bstart;--b)
 	{
+
+		
 		vector<vector<std::string> >().swap(hapvec); //clear hapvec
-		vector<vector<std::string> > hapvec( (bufvec2d.size() - 2) ); //size hapvec, # indiv is same as bufvec2d minus two header lines
+		vector<vector<std::string> > hapvec( (bufvec2d.size() - 3) ); //size hapvec, # indiv is same as bufvec2d minus three header lines
 		vector<std::string>().swap(SNPsizevec); //clear SNPsizevec
 		vector<std::string>().swap(midptvec); //clear midptvec
 		vector<std::string>().swap(chrvec); //clear chrvec
+		vector<std::string>().swap(aacatvec); //clear aacatvec
 
 		//cycle through SNPs, one individual at a time
-		for (unsigned long i=2;i<bufvec2d.size();++i) //start at third row
+		for (unsigned long i=3;i<bufvec2d.size();++i) //start at fourth row
 		{
-			cout << bufvec2d[i][0] << ", haplotype "<<i-1<<"/"<<bufvec2d.size() - 2<<" with blocklength "<<b<<"/"<<bend<<"\n";
+			cout << bufvec2d[i][0] << ", haplotype "<<i-2<<"/"<<bufvec2d.size() - 3<<" with blocklength "<<b<<"/"<<bend<<"\n";
 		
 			vector<std::string> currindiv = bufvec2d[i]; //for convenience get the current indiv SNPs as a separate vector
-			hapvec[i-2].push_back(currindiv[0]); //add the indiv id to hapvec, noting correction to index i for starting on third line of bufvec2d
+			hapvec[i-3].push_back(currindiv[0]); //add the indiv id to hapvec, noting correction to index i for starting on fourth line of bufvec2d
 		
 			//cycle through SNPs
-			unsigned long j = 1;
-			while (j<currindiv.size()) //j = allele index (first column is sample name)
+			unsigned long j = 1; //j = allele index (starts at 1 because first column is sample name)
+			unsigned long m = 0; //m = amino acid code index (starts at 0)
+			while (j<currindiv.size()) 
 			{
 				string startchr = chr[j-1];//get the chromosome of the starting SNP for the fusion
 				unsigned long long startpos = posull[j-1]; //get start position
 				unsigned long k = 0;
 				std::string newallele;
+				std::string newaacats;
 				while ( (k < b) && (j<currindiv.size()) ) //b=blocklength
 				{
 					if (chr[j-1] == startchr) //verify that current SNP is on the same chromosome as the starting SNP for the fusion
 					{
-						newallele += currindiv[j];
+						newallele += currindiv[j]; //concatenate the allele calls for the current block
+						if (i ==3)
+						{
+							newaacats += aacat[m]; //concatenate the amino acid category codes for the current block, only need to do this when working on first individual since it will be the same for all
+						}
 						++k;
 						++j;
+						++m;
 					}
 					else break; //leave the while loop if you encounter a new chromosome, do not ++j.
 								//A truncated fusion product may remain!!
 				}
 		
-				//calculate length of SNP region fused and midpoint of haplotype block, add to vectors
+				//calculate length of SNP region fused, the midpoint of haplotype block, and the frequency of non-genic, non-synonymous, and synonymous SNPs in the block
+				//add to vectors
 				//do this only for individual #1, since it is the same for all
-				if (i == 2)
+				if (i == 3)
 				{
+					//calculate length
 					unsigned long long endpos = posull[j-2];//determine the end position, it is the previous SNP, (j-1)-1 = j-2
 					unsigned long long SNPlen = endpos - startpos + 1;  //+1 to include the SNP position on both ends
 					if ( SNPlen > maxpos ) 
@@ -371,7 +387,13 @@ int main( int argc, char* argv[] )
 						cout << "An error has occurred. endpos="<<endpos<<", startpos="<<startpos<<", SNPlen="<<SNPlen<<"\n  SNP order may not be consecutive.\n";
 					}
 					
+					//calculate midpt
 					unsigned long long midpt = startpos+(SNPlen/2);
+					
+					//calculate amino acid category code frequencies
+					unsigned long long ng = std::count(newaacats.begin(), newaacats.end(), '0');
+					unsigned long long syn = std::count(newaacats.begin(), newaacats.end(), '1');
+					unsigned long long ns = std::count(newaacats.begin(), newaacats.end(), '2');
 					
 					//cout << startchr << "\t" << j << "\t" << startpos << "\t" << endpos << "\t" << SNPlen << "\t" << midpt << "\n";
 			
@@ -386,13 +408,19 @@ int main( int argc, char* argv[] )
 					sd << midpt;
 					str = sd.str();
 					midptvec.push_back(str);
-			
+					
+					//add the amino acid category codes to aacatvec
+					stringstream se;
+					se << ng << ":" << syn << ":" << ns;
+					str = se.str();
+					aacatvec.push_back(str);
+				
 					//make note of the chromosomal location of the new fusion product
 					chrvec.push_back(startchr);
 				}
 			
 				//add the new fused allele to the data for this individual
-				hapvec[i-2].push_back(newallele);
+				hapvec[i-3].push_back(newallele);
 			
 			}//snp
 		}//individual
@@ -519,6 +547,14 @@ int main( int argc, char* argv[] )
 		}
 		output << "\n";
 	
+		//write amino acid category codes
+		for (unsigned int i=0;i<aacatvec.size();++i)
+		{
+			if (i == aacatvec.size() -1) output << aacatvec[i];
+			else output << aacatvec[i] << " ";
+		}
+		output << "\n";
+		
 		//write new SNPs
 		for (unsigned long i=0;i<hapvecint.size();++i)
 		{
