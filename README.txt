@@ -21,7 +21,7 @@ Third row--amino acid category of each SNP, non-genic (0), synonymous (1),
 or non-synonymous (2)
 Fourth + rows --individual genotypes, sample name is first column
 
-Example input file with 20 SNPs, haploid data:
+Example input file with 20 SNPs, haploid data, all loci non-genic:
 1 1 1 1 1 1 2 2 2 2 2 3 3 3 3 3 3 3 3 3
 42 456 6032 6142 10054 11529 79 876 1024 1125 12058 3 24 53 657 1001 1200 5654 1000254 1000256
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
@@ -29,7 +29,7 @@ a 0 1 0 0 0 1 1 1 0 0 1 1 1 0 1 0 1 0 1 0
 b 1 1 0 0 0 1 0 1 0 0 ? 0 0 0 1 1 1 0 0 0
 c 0 1 1 1 0 1 0 1 0 1 1 0 0 0 1 0 ? 0 0 1
 
-Example input file with 10 SNPs, phased diploid data, 2 rows per individual:
+Example input file with 10 SNPs, phased diploid data (2 rows per individual):
 1 1 1 1 1 2 2 3 3 3
 10003096 10003352 10003834 10004403 10004622 45319876 45754486 9689083 9689915 9737708
 0 0 2 0 0 1 0 0 1 0
