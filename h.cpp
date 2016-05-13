@@ -339,11 +339,6 @@ int main( int argc, char* argv[] )
 		vector<std::string>().swap(chrvec); //clear chrvec
 		vector<std::string>().swap(aacatvec); //clear aacatvec
 		
-		unsigned long long ng; //number of non-genic SNPs contained in the haplotype block
-		unsigned long long syn; //number of synonymous SNPs contained in the haplotype block
-		unsigned long long ns; //number of non-synonymous SNPs contained in the haplotype block
-
-
 		//cycle through SNPs, one individual at a time
 		for (unsigned long i=3;i<bufvec2d.size();++i) //start at fourth row
 		{
@@ -398,13 +393,13 @@ int main( int argc, char* argv[] )
 						unsigned long long midpt = startpos+(SNPlen/2);
 					
 						//calculate amino acid category code frequencies
-						ng = std::count(newaacats.begin(), newaacats.end(), '0');
-						syn = std::count(newaacats.begin(), newaacats.end(), '1');
-						ns = std::count(newaacats.begin(), newaacats.end(), '2');
+						unsigned long long ng = std::count(newaacats.begin(), newaacats.end(), '0'); //number of non-genic SNPs contained in the haplotype block
+						unsigned long long syn = std::count(newaacats.begin(), newaacats.end(), '1'); //number of synonymous SNPs contained in the haplotype block
+						unsigned long long ns = std::count(newaacats.begin(), newaacats.end(), '2'); //number of non-synonymous SNPs contained in the haplotype block
 					
 						//test whether the number of SNPs included in the haplotype is equal to the blocklength, i.e. is the haplotype truncated?
 						//if the haplotype is not truncated, include it in the output
-						if (ng + syn + ns == b)
+						if (newallele.length() == b)
 						{
 							//cout << startchr << "\t" << j << "\t" << startpos << "\t" << endpos << "\t" << SNPlen << "\t" << midpt << "\n";
 			

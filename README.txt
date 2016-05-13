@@ -18,7 +18,7 @@ Input file format:
 First row--space delimited list assigning SNP to chromosome
 Second row--position of SNP along chromosome
 Third row--amino acid category of each SNP, non-genic (0), synonymous (1),
-or non-synonymous (2)
+  non-synonymous (2), unknown (9)
 Fourth + rows --individual genotypes, sample name is first column
 
 Example input file with 20 SNPs, haploid data, all loci non-genic:
