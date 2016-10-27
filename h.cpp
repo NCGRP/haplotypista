@@ -3,13 +3,7 @@
 
 /*
 To compile:  use "make"
-Usage: haplotypista -i inputfile -o outputfile -l logfile -b blocklengthstart blocklengthend 
-where, 
--b specifies a range of blocklengths to consider
-blocklength = length of haplotype block in number of adjacent SNPs to be combined
--m specifies the missing data character
-
-Examples: ./haplotypista -i hin.txt -o hout.txt -l hlog.txt -b 2 4 -m ?
+Usage: see README.txt
 */
 
 
@@ -317,6 +311,9 @@ int main( int argc, char* argv[] )
 	vector<std::string> chrvec; //will contain chromosomal location of newly fused region
 	vector<std::string> midptvec; //will contain the nucleotide position of the midpoint of the newly fused region
 	vector<std::string> aacatvec; //will contain the counts of non-genic, synonymous, and non-synonymous sites contained in the fused region in the form {4 1 0, 3 0 2, 5 0 0}
+	vector<std::string> blockstartvec; //will contain the nucleotide position of the first SNP of the haplotype block
+	vector<std::string> blockendvec; //will contain the nucleotide position of the last SNP of the haplotype block
+
 	
 	vector<std::string> chr = bufvec2d[0]; //get list of chromosome designation for each SNP
 	vector<std::string> pos = bufvec2d[1]; //get list of positions of SNPs on chromosome
@@ -338,6 +335,8 @@ int main( int argc, char* argv[] )
 		vector<std::string>().swap(midptvec); //clear midptvec
 		vector<std::string>().swap(chrvec); //clear chrvec
 		vector<std::string>().swap(aacatvec); //clear aacatvec
+		vector<std::string>().swap(blockstartvec); //clear blockstartvec
+		vector<std::string>().swap(blockendvec); //clear blockendvec
 		
 		//cycle through SNPs, one individual at a time
 		for (unsigned long i=3;i<bufvec2d.size();++i) //start at fourth row
@@ -420,7 +419,19 @@ int main( int argc, char* argv[] )
 							se << ng << ":" << syn << ":" << ns;
 							str = se.str();
 							aacatvec.push_back(str);
-				
+							
+							//add the position of the first SNP in block to blockstartvec
+							stringstream sf;
+							sf << startpos;
+							str = sf.str();
+							blockstartvec.push_back(str);
+							
+							//add the position of the last SNP in block to blockendvec
+							stringstream sg;
+							sg << endpos;
+							str = sg.str();
+							blockendvec.push_back(str);
+							
 							//make note of the chromosomal location of the new fusion product
 							chrvec.push_back(startchr);
 						}
@@ -569,7 +580,23 @@ int main( int argc, char* argv[] )
 		}
 		output << "\n";
 		
-		//write new SNPs
+		//write haplotype block startpoint
+		for (unsigned int i=0;i<blockstartvec.size();++i)
+		{
+			if (i == blockstartvec.size() - 1) output << blockstartvec[i];
+			else output << blockstartvec[i] << " ";
+		}
+		output << "\n";
+		
+		//write haplotype block endpoint
+		for (unsigned int i=0;i<blockendvec.size();++i)
+		{
+			if (i == blockendvec.size() - 1) output << blockendvec[i];
+			else output << blockendvec[i] << " ";
+		}
+		output << "\n";
+		
+		//write alleles
 		for (unsigned long i=0;i<hapvecint.size();++i)
 		{
 			stringstream ss;

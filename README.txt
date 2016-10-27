@@ -47,13 +47,17 @@ Produces a series of output data sets with unique haplotypes recoded as unique i
 	Output data sets receive the suffix ".bX" where X is the block length, i.e. the number of
 	contiguous SNPs used to define the allelic state.  If a string of SNPs contains the 
 	missing data character defined with -m, the resulting haplotype is recoded as missing 
-	data, receiving the designation "-9999" in the output file.  Row 1 of the output data set 
-	indicates the chromosome where the haplotype lies.  Row 2 is the length of the 
-	haplotype block, using the units in row 2 of the input file.  Row 3 is the midpoint of
-	the haplotype block on the chromosome. Row 4 contains counts of non-genic, synonymous,
-	and non-synonymous substitutions. For example, for blocklength = 5 in above example:
-	4:0:1 3:2:0.  In this case the first block contains 4 non-genic SNPs and 1 non-synonymous 
-	SNP. Block 2 contains 3 non-genic, 2 synonymous SNPs and 0 non-synonymous SNPs.
+	data, receiving the designation "-9999" in the output file.  
+	Row 1--chromosome where the haplotype lies.
+	Row 2--length of the haplotype block, using the units in row 2 of the input file.
+	Row 3--midpoint of the haplotype block on the chromosome.
+	Row 4--counts of non-genic, synonymous, and non-synonymous substitutions. For example,
+		for blocklength = 5 in above example, 4:0:1 3:2:0.  In this case the first block 
+		contains 4 non-genic SNPs and 1 non-synonymous SNP. Block 2 contains 3 non-genic, 
+		2 synonymous SNPs and 0 non-synonymous SNPs.
+	Row 5--position of first SNP in the haplotype block
+	Row 6--position of last SNP in the haplotype block
+	
 Also produces a log file containing summary statistics for the output data sets.  Column
 	headers are as follows:
 	b = haplotype block length
