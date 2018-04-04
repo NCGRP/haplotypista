@@ -1,4 +1,4 @@
-haplotypista generates a new data matrix by combining a given number of SNPs into a single haplotype block.
+Haplotypista generates a new data matrix by combining a given number of SNPs into a single haplotype block.
 	Each unique haplotype block is given a new, integer-coded, allelic state.  Also calculates block length.
 
 To compile:  use "make"
