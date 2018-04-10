@@ -150,8 +150,6 @@ vector<vector<std::string> > MyReadInfile(char* InFilePath)
 	return bufvec2d;
 }
 
-
-
 //convert alleles to integer coding to save memory, vector access order 2
 vector<vector<int> > MyRecode(vector<vector<std::string> > hapvec, std::string missingchar)
 {
@@ -173,10 +171,9 @@ vector<vector<int> > MyRecode(vector<vector<std::string> > hapvec, std::string m
 			
 			//search for missing substring
 			std::size_t found = a.find(missingchar);
-			if (found!=std::string::npos) hapvecint[k][ColIndex-1] = -9999; //add the missing data value #this seems to put a missing value for a haplotype 
+			if (found!=std::string::npos) hapvecint[k][ColIndex-1] = -9; //add the missing data value #this puts a missing value for a haplotype 
 			                                                                //that contains any missing nucleotide. this might not be the smartest way to deal with this.
 			                                                                //too conservative? --PR 1/27/14
-			//if (a == "9999") hapvecint[k][ColIndex] = -9999; //add the missing data value
 			else
 			{
 				int AlleleInt; //the new, integerized, name of the allele
@@ -213,6 +210,231 @@ bool fileExists(const char *fileName)
     return infile.good();
 }
 
+vector<Location> MyProcessLocations(std::string in, std::string& DoReduce)
+{
+	//change status of switch
+	DoReduce = "yes";
+
+	//initialize
+	std::string a;
+	vector<Location> locs;
+	std::replace( in.begin(), in.end(), ',', ' '); //replace all commas with space
+	vector<string> ranges = split(in); //split space delimited string into vector with entry like 1.2355:1.6952 to specify a single range
+	
+	for (unsigned int i=0;i<ranges.size();++i)
+	{
+		a = ranges[i];
+		std::replace( a.begin(), a.end(), ':', ' ' );
+		std::replace( a.begin(), a.end(), '.', ' ' );
+		vector<string> l = split(a); //split space delimited string into a vector with position 0 and 2 specify chromosome, positions 1 and 3 specify beginloc, endloc
+		
+		//convert vector<string> to vector<unsigned long long>, add values to Location struct, push_back onto return variable
+		vector<unsigned long long> ll;
+		for (unsigned int j=0;j<l.size();++j)
+		{
+			ll.push_back( stoull(l[j]) );	
+		}
+		if ( ll[0] != ll[2] ) 
+		{
+			cout << "Range specifications for regions of interest can not span chromosomes. Quitting...\n";
+			exit (EXIT_FAILURE);
+		}
+		Location loc { ll[0], ll[1], ll[3] };
+		locs.push_back(loc); 
+	}
+	return locs;
+}
+
+int MyDoReduce(vector<vector<std::string> >& bufvec2d, vector<Location> locs)
+{
+	unsigned long long chr;
+	unsigned long long beginloc;
+	unsigned long long endloc;
+	vector<unsigned long long> incvec; //will hold indexes of all columns to be included from rows containing genotypic data
+		
+	
+	for (unsigned int l=0;l<locs.size();++l)
+	{
+		 
+		 chr = locs[l].chr; //get the chromosome for current location
+		 beginloc = locs[l].beginloc;
+		 endloc = locs[l].endloc;
+		 //cout << "l=" << l << "beginloc=" << beginloc << "endloc=" << endloc << "\n";
+		 
+		 //extract index values to locate columns in bufvec2d that correspond to regions of interest
+		 //if statement tests: chr is correct, position is between range specified in locs[l]
+		 for (unsigned long long i=0;i<bufvec2d[0].size();++i)
+		 {
+		 	if ( (stoull(bufvec2d[0][i]) == chr) && (stoull(bufvec2d[1][i]) >= beginloc) && (stoull(bufvec2d[1][i]) <= endloc) )
+		 	{
+		 		incvec.push_back(i+1);
+		 		//cout << "i+1=" << i+1 << "\n";	
+		 		//cout << " " << stoull(bufvec2d[0][i]) << "\n";
+		 		//cout << " " << stoull(bufvec2d[1][i]) << "\n";
+		 	}
+		 }
+	}
+	
+	//extract relevant data
+	std::string pb;
+	vector<vector<std::string> > tempvec2d(bufvec2d.size()); //initialize temporary storage with same row number as bufvec2d
+	//add sample names to rows 3 thru end
+	for (unsigned int j=3;j<bufvec2d.size();++j)
+	{
+		pb = bufvec2d[j][0];
+		tempvec2d[j].push_back(pb);
+	}
+	//iterate through rows, extracting columns from each row corresponding to index values
+	for (unsigned int j=0;j<bufvec2d.size();++j)
+	{
+		//iterate over list of indexed
+		for (unsigned int i=0;i<incvec.size();++i)
+		{
+			//treat 1st three rows differently, use indexed position -1
+			if ( j <= 2 )
+			{
+				pb = bufvec2d[j][incvec[i]-1];
+				tempvec2d[j].push_back(pb);
+			}
+			else
+			{
+				pb = bufvec2d[j][incvec[i]];
+				tempvec2d[j].push_back(pb);
+			}
+		}
+	}
+
+	//overwrite bufvec2d for update by reference
+	bufvec2d = tempvec2d;
+
+	return 0;
+}
+
+int MyWriteNormal(std::string OutFilePathS, vector<std::string> chrvec, vector<std::string> SNPsizevec, vector<std::string> midptvec, vector<std::string> aacatvec, vector<std::string> blockstartvec, vector<std::string> blockendvec, vector<std::string> ind, vector<vector<int> > hapvecint)
+{
+	OutFilePathS += ".txt";
+	//write the new data matrix to the output file
+	ofstream output;
+	output.open(OutFilePathS.c_str()); //convert std::string to const char* via c_str()
+	output.close(); //quick open close done to clear any existing file each time program is run
+	output.open(OutFilePathS.c_str(), ios::out | ios::app); //open file in append mode
+
+	//write chromosomal location
+	for (unsigned int i=0;i<chrvec.size();++i)
+	{
+		if (i == chrvec.size() - 1) output << chrvec[i];
+		else output << chrvec[i] << " ";
+	}
+	output << "\n";
+
+	//write fused SNP size
+	for (unsigned int i=0;i<SNPsizevec.size();++i)
+	{
+		if (i == SNPsizevec.size() - 1) output << SNPsizevec[i];
+		else output << SNPsizevec[i] << " ";
+	}
+	output << "\n";
+
+	//write haplotype block midpoint
+	for (unsigned int i=0;i<midptvec.size();++i)
+	{
+		if (i == midptvec.size() - 1) output << midptvec[i];
+		else output << midptvec[i] << " ";
+	}
+	output << "\n";
+
+	//write amino acid category codes
+	for (unsigned int i=0;i<aacatvec.size();++i)
+	{
+		if (i == aacatvec.size() -1) output << aacatvec[i];
+		else output << aacatvec[i] << " ";
+	}
+	output << "\n";
+	
+	//write haplotype block startpoint
+	for (unsigned int i=0;i<blockstartvec.size();++i)
+	{
+		if (i == blockstartvec.size() - 1) output << blockstartvec[i];
+		else output << blockstartvec[i] << " ";
+	}
+	output << "\n";
+	
+	//write haplotype block endpoint
+	for (unsigned int i=0;i<blockendvec.size();++i)
+	{
+		if (i == blockendvec.size() - 1) output << blockendvec[i];
+		else output << blockendvec[i] << " ";
+	}
+	output << "\n";
+	
+	//write alleles
+	for (unsigned long i=0;i<hapvecint.size();++i)
+	{
+		stringstream ss;
+		ss << ind[i];
+		output << ss.str() << " ";
+		for (unsigned long long j=0;j<hapvecint[i].size();++j)
+		{
+			output << hapvecint[i][j] << " ";
+		}
+		output << "\n";
+	}
+	
+	//wrap up write step
+	output.close();
+	
+	return 0;
+}
+
+int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::string> midptvec, vector<std::string> ind, vector<vector<int> > hapvecint)
+{
+	//modify file name for m+ .dat and .var format
+	std::string datfile = OutFilePathS + ".dat";
+	std::string varfile = OutFilePathS + ".var";
+	
+	//write the new data matrix to dat file
+	ofstream output;
+	output.open(datfile.c_str()); //convert std::string to const char* via c_str()
+	output.close(); //quick open close done to clear any existing file each time program is run
+	output.open(datfile.c_str(), ios::out | ios::app); //open file in append mode
+
+
+
+
+	//wrap up write dat file
+	output.close();
+	
+
+
+	//create locus names
+	std::string loc;
+	vector<std::string> locnames;
+	unsigned long long j = 1;
+	for (unsigned int i=0;i<chrvec.size();++i)
+	{
+		loc = chrvec[i] + "." + midptvec[i] + "." + to_string(j);
+		locnames.push_back(loc);
+		++j;
+	}
+
+	//write the var file
+	//ofstream output;
+	output.open(varfile.c_str()); //convert std::string to const char* via c_str()
+	output.close(); //quick open close done to clear any existing file each time program is run
+	output.open(varfile.c_str(), ios::out | ios::app); //open file in append mode
+	
+	output << "code 0\nindividu 0\nSample 1 0 0 1 5\n"; //write var file header
+	for (unsigned int i=0;i<locnames.size();++i)
+	{
+		output << locnames[i] << " 2 1 0 1 5\n";
+	}
+	//wrap up write var file
+	output.close();
+
+	return 0;
+}
+
+
 /***************MAIN*****************/
 
 int main( int argc, char* argv[] )
@@ -220,11 +442,15 @@ int main( int argc, char* argv[] )
 	//parse the command line for options
 	char* InFilePath;
 	char* OutFilePath;
-	char* LogFilePath;
+	char* PopFilePath;
+	std::string LogFilePath;
 	unsigned long bstart;
 	unsigned long bend; //start and end for range of block lengths
 	std::string missingchar;
 	int ploidy;
+	vector <Location> locs; //holds ranges for genomic regions of interest
+	std::string DoReduce = "no";
+	std::string MakeM = "no";
 	for (int i=0;i<argc;i++)
 	{
 		if ( string(argv[i]) == "-i" ) 
@@ -235,13 +461,14 @@ int main( int argc, char* argv[] )
 		if ( string(argv[i]) == "-o" ) 
     	{
         	OutFilePath = argv[i+1];
+        	LogFilePath = std::string(OutFilePath) + "log.txt";
  		}
 		
-		if ( string(argv[i]) == "-l" ) 
+/*		if ( string(argv[i]) == "-l" ) 
     	{
 		 	LogFilePath = argv[i+1];
 		}
-
+*/
 		if ( string(argv[i]) == "-b" ) 
     	{
 		 	bstart = strtoul( argv[i+1], NULL, 10);
@@ -258,17 +485,70 @@ int main( int argc, char* argv[] )
 		 	ploidy = atoi(argv[i+1]);
 		}
 
+		if ( string(argv[i]) == "-g" ) 
+    	{
+		 	//process command line supplied genes of interest
+		 	locs = MyProcessLocations(argv[i+1], DoReduce);
+		}
+		
+		if ( string(argv[i]) == "-v" ) 
+    	{
+			MakeM = "yes";
+			PopFilePath = argv[i+1];
+		}
+
 	}
+	
+	//process genes of interest that are piped in
+	//test whether there is a piped list. does program see a terminal or a file/pipe as the source of the stdin?
+	if (isatty(fileno(stdin))); //puts("stdin is connected to a terminal"); //do nothing
+  	else
+  	{
+    	//puts("stdin is NOT connected to a terminal");
+    	//stdin is from a pipe, |, or file, <
+		std::string pipedin;
+		std::string s;
+		while (std::getline(std::cin, s))
+		{
+			pipedin += s;
+			pipedin += ",";
+		}
+		pipedin.pop_back();//remove hanging comma
+		locs = MyProcessLocations(pipedin, DoReduce);
+		cout << "\n" << "pipedin=" << pipedin << "\n";
+	
+	}
+	
+	/* write out command line options and genes of interest specification
+		for (int i=0;i<argc;i++)
+		{
+			cout << argv[i] << "\n";	
+		}
+	
+		for (int i=0;i<locs.size();++i)
+		{
+			cout << i << " " << locs[i].chr << " " << locs[i].beginloc << " " << locs[i].endloc << "\n";
+		}
+	*/
 	
 	//test whether all required files specified on the command line exist
 	vector<std::string> BadFiles;
+	std::string bf;
 	if (fileExists(InFilePath) == 0) 
 	{
-		std::string bf = "InFilePath = ";
+		bf = "InFilePath = ";
 		bf += InFilePath;
 		BadFiles.push_back(bf);
 	}
-
+	if (MakeM == "yes")
+		{
+		if (fileExists(PopFilePath) == 0) 
+		{
+			bf = "PopFilePath = ";
+			bf += PopFilePath;
+			BadFiles.push_back(bf);
+		}
+	}
 	
 	if (BadFiles.size() > 0)
 	{
@@ -295,13 +575,89 @@ int main( int argc, char* argv[] )
 	}
 	
 	//print out stats on input file
-	cout << (bufvec2d.size() - 3) / ploidy << " individuals, " << bufvec2d.size() - 3 << " haplotypes, " << bufvec2d[0].size() << " SNPs, ploidy = " << ploidy << "N\n";
+	cout << "Data set contains:\n";
+	cout << "  " << (bufvec2d.size() - 3) / ploidy << " individuals, " << bufvec2d.size() - 3 << " haplotypes, " << bufvec2d[0].size() << " SNPs, ploidy = " << ploidy << "N\n";
+	
+	//read the population specification file, process it
+	if (MakeM == "yes")
+	{
+		//2d vector reader used out of laziness
+		vector<vector<std::string> > popvec2d = MyReadInfile(PopFilePath); 
+		//load pop names onto a 1d vector
+		vector<std::string> popvec(popvec2d.size());
+		std::set<std::string> popuniq;
+		for (unsigned int i=0;i<popvec2d.size();++i)
+		{
+			popvec[i] = popvec2d[i][0];
+			popuniq.insert(popvec2d[i][0]); //place into set to determine unique pop names
+		}
+		//label each pop name with consecutive values for each ind
+		vector<std::string> rowlabs(popvec.size());
+		std::string ins = "no"; //match indicator
+		for(set<string>::const_iterator it = popuniq.begin(); it != popuniq.end(); it++)
+   		{
+        	unsigned int x = 1;
+        	unsigned int i = 0;
+        	
+        	cout << "i=" << i << ", x=" << x << "\n";
+
+        	while ( i < (popvec.size()) )
+        	{
+				//test whether current vector element is the same as the unique pop id from set popuniq
+				if ( popvec[i] == *it )
+				{
+					ins = "yes";
+					//repeat ploidy times if above true
+					for (int p=0;p<ploidy;++p)
+					{
+						//add row label for p-th consecutive row
+						rowlabs[i] = (popvec[i] + " " + to_string(x));
+						++i;
+        	cout << "i=" << i << ", x=" << x << "\n";
+					}
+ 				}
+ 				
+ 				if ( ins == "no") ++i;  //index popvec if no match to set iterator
+ 				if ( ins == "yes" ) 
+ 				{
+ 					ins = "no"; //reset match indicator
+ 					++x; //index ind label only after labeling all rows corresponding to the same ind
+ 				}
+
+        	}
+   		}
+   		
+   		for (unsigned int i=0; i<rowlabs.size();++i) cout << rowlabs[i] << "\n";
+		
+	}	
+	
+	//reduce data set to regions of interest
+	if (DoReduce == "yes")
+	{
+		MyDoReduce(bufvec2d, locs); //updates bufvec2d as reference
+		
+		//print out stats on reduced file
+		cout << "Reducing data set to positions of interest...\n";
+		cout << "Reduced data set contains:\n";
+		cout << "  " << (bufvec2d.size() - 3) / ploidy << " individuals, " << bufvec2d.size() - 3 << " haplotypes, " << bufvec2d[0].size() << " SNPs, ploidy = " << ploidy << "N\n";
+	}
+	
+	/*print out the data set	
+		for (unsigned int i=0;i<bufvec2d.size();++i)
+		{
+			for (unsigned int j=0;j<bufvec2d[i].size();++j)
+			{
+				cout << bufvec2d[i][j] << " ";
+			}
+			cout << "\n";
+		}
+	*/ 
 	
 	//open log file
 	ofstream logger;
-	logger.open(LogFilePath);
+	logger.open(LogFilePath.c_str());
 	logger.close(); //quick open close done to clear any existing file each time program is run
-	logger.open(LogFilePath, ios::out | ios::app); //open file in append mode
+	logger.open(LogFilePath.c_str(), ios::out | ios::app); //open file in append mode
 	logger << "b	chromosome	n loci	Mean allele count	SD allele count	n haplotype length	Mean haplotype length	SD haplotype length\n";
 	
 	//COMBINE ADJACENT ALLELES INTO HAPLOTYPES
@@ -327,8 +683,6 @@ int main( int argc, char* argv[] )
 	//cycle through range of blocklengths, backwards, since larger b values run faster
 	for (unsigned int b=bend;b>=bstart;--b)
 	{
-
-		
 		vector<vector<std::string> >().swap(hapvec); //clear hapvec
 		vector<vector<std::string> > hapvec( (bufvec2d.size() - 3) ); //size hapvec, # indiv is same as bufvec2d.size() minus three header lines
 		vector<std::string>().swap(SNPsizevec); //clear SNPsizevec
@@ -534,7 +888,7 @@ int main( int argc, char* argv[] )
 		else cout << "  " << dif << " seconds.\n";
 
 
-		//WRITE NEW DATA SET
+		//WRITE NEW DATA SETS
 		//create the write path by appending blocklength
 		std::string OutFilePathS = OutFilePath; //char* to std::string
 		OutFilePathS += ".b";
@@ -542,76 +896,9 @@ int main( int argc, char* argv[] )
 		ss << b;
 		OutFilePathS += ss.str();
 		
-		//write the new data matrix to the output file
-		ofstream output;
-		output.open(OutFilePathS.c_str()); //convert std::string to const char* via c_str()
-		output.close(); //quick open close done to clear any existing file each time program is run
-		output.open(OutFilePathS.c_str(), ios::out | ios::app); //open file in append mode
-	
-		//write chromosomal location
-		for (unsigned int i=0;i<chrvec.size();++i)
-		{
-			if (i == chrvec.size() - 1) output << chrvec[i];
-			else output << chrvec[i] << " ";
-		}
-		output << "\n";
-	
-		//write fused SNP size
-		for (unsigned int i=0;i<SNPsizevec.size();++i)
-		{
-			if (i == SNPsizevec.size() - 1) output << SNPsizevec[i];
-			else output << SNPsizevec[i] << " ";
-		}
-		output << "\n";
-
-		//write haplotype block midpoint
-		for (unsigned int i=0;i<midptvec.size();++i)
-		{
-			if (i == midptvec.size() - 1) output << midptvec[i];
-			else output << midptvec[i] << " ";
-		}
-		output << "\n";
-	
-		//write amino acid category codes
-		for (unsigned int i=0;i<aacatvec.size();++i)
-		{
-			if (i == aacatvec.size() -1) output << aacatvec[i];
-			else output << aacatvec[i] << " ";
-		}
-		output << "\n";
+		MyWriteNormal(OutFilePathS, chrvec, SNPsizevec, midptvec, aacatvec, blockstartvec, blockendvec, ind, hapvecint);
+		if (MakeM == "yes") MyWriteM(OutFilePathS, chrvec, midptvec, ind, hapvecint);
 		
-		//write haplotype block startpoint
-		for (unsigned int i=0;i<blockstartvec.size();++i)
-		{
-			if (i == blockstartvec.size() - 1) output << blockstartvec[i];
-			else output << blockstartvec[i] << " ";
-		}
-		output << "\n";
-		
-		//write haplotype block endpoint
-		for (unsigned int i=0;i<blockendvec.size();++i)
-		{
-			if (i == blockendvec.size() - 1) output << blockendvec[i];
-			else output << blockendvec[i] << " ";
-		}
-		output << "\n";
-		
-		//write alleles
-		for (unsigned long i=0;i<hapvecint.size();++i)
-		{
-			stringstream ss;
-			ss << ind[i];
-			output << ss.str() << " ";
-			for (unsigned long long j=0;j<hapvecint[i].size();++j)
-			{
-				output << hapvecint[i][j] << " ";
-			}
-			output << "\n";
-		}
-		
-		//wrap up write step
-		output.close();
-
 	}//blocklength range		
 	
 	//wrap up write to log

@@ -1,6 +1,6 @@
 # serial compilation
 CXX = g++
-FLAGS = -O3 -Wall
+FLAGS = -std=c++11 -O3 -Wall
 
 all: h.o
 	${CXX} ${FLAGS} h.o -o haplotypista

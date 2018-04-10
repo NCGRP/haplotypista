@@ -8,7 +8,7 @@
 #include <set>
 #include <stdlib.h>
 #include <string>
-#include <string.h>
+#include <cstring>
 #include <sstream>
 #include <time.h>
 #include <unistd.h>
@@ -18,6 +18,13 @@ using namespace std;
 
 /***************STRUCTS*****************/
 
+//holds ranges for genomic regions of interest
+struct Location
+{
+  unsigned long long chr; //chromosome
+  unsigned long long beginloc;
+  unsigned long long endloc;
+};
 
 /***************CLASSES*****************/
 

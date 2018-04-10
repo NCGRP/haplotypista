@@ -2,16 +2,30 @@ Haplotypista generates a new data matrix by combining a given number of SNPs int
 	Each unique haplotype block is given a new, integer-coded, allelic state.  Also calculates block length.
 
 To compile:  use "make"
-Usage: haplotypista -i inputfile -o outputfile -l logfile -b blocklengthstart blocklengthend -m missingdatachar -p ploidy
-where, 
--b specifies a range of blocklengths to consider
-blocklength = length of haplotype block in number of adjacent SNPs to be combined
--m specifies the missing data character used in the input file
--p specifies the ploidy, 1 = haploid, 2 = diploid, etc.
+Usage: haplotypista -i inputfile -o outputfile -b blocklengthstart blocklengthend -m missingdatachar -p ploidy
 
-Examples: ./haplotypista -i hexin.txt -o hexout.txt -l hexlog.txt -b 2 4 -m ? -p 1
-          ./haplotypista -i AtExample.txt -o AtExout.txt -l AtExlog.txt -b 5 8 -m ? -p 1
-          ./haplotypista -i PopulusExample.txt -o PopExout.txt -l PopExlog.txt -b 1 4 -m ? -p 2 
+Mandatory command line flags:
+-i    input file 
+-o    output file root
+-b    range of haplotype block lengths to consider, where blocklength = number of adjacent
+      SNPs to be combined
+-m    missing data character used in the input file
+-p    ploidy, 1 = haploid, 2 = diploid, etc.
+
+Optional command line flags:
+-g    genomic positions of interest specified in a comma-delimited list of the form:
+      1.75000:1.115776,14.8638989:14.8697509
+      Above example specifies bp 75000-115776 of chromosome 1 and bp 14.8697509 of chromosome 14
+      as positions of interest. Additionally, a line break delimited list may be piped to
+      haplotypista.  If both are supplied, the piped list will be used.
+-v    write m+ input files (.var and .dat) for recoded matrices, required argument is a path
+      to a file containing a line break delimited list that maps sample names to populations.
+      
+
+Examples: ./haplotypista -i hexin.txt -o hexout -l hexlog.txt -b 2 4 -m ? -p 1
+          ./haplotypista -i AtExample.txt -o AtExout -l AtExlog.txt -b 5 8 -m ? -p 1
+          ./haplotypista -i PopulusExample.txt -o PopExout -l PopExlog.txt -b 1 4 -m ? -p 2 
+          ./haplotypista -i PopulusExample.txt -o PopEx2out -l PopEx2log.txt -b 1 4 -m ? -p 2 -g 1.75000:1.115776,14.8697509:14.8697509 -v Poppopid.txt
 
 
 Input file format:
@@ -47,7 +61,7 @@ Produces a series of output data sets with unique haplotypes recoded as unique i
 	Output data sets receive the suffix ".bX" where X is the block length, i.e. the number of
 	contiguous SNPs used to define the allelic state.  If a string of SNPs contains the 
 	missing data character defined with -m, the resulting haplotype is recoded as missing 
-	data, receiving the designation "-9999" in the output file.  
+	data, receiving the designation "-9" in the output file.  
 	Row 1--chromosome where the haplotype lies.
 	Row 2--length of the haplotype block, using the units in row 2 of the input file.
 	Row 3--midpoint of the haplotype block on the chromosome.
@@ -63,8 +77,8 @@ Also produces a log file containing summary statistics for the output data sets.
 	b = haplotype block length
 	chromosome = chromosome number ("0" indicates all chromosomes combined)
 	n loci = number of loci used for allele count statistics
-	Mean allele count = average number of alleles across newly coded loci
-	SD allele count = standard deviation of allele count across newly coded loci
+	Mean allele count = average number of alleles across recoded loci
+	SD allele count = standard deviation of allele count across recoded loci
 	n haplotype length = number of recoded haplotypes used for haplotype length statistics
-	Mean haplotype length = average length of a newly coded locus
-	SD haplotype length = standard deviation in length across newly coded loci
+	Mean haplotype length = average length of a recoded locus
+	SD haplotype length = standard deviation in length across recoded loci
