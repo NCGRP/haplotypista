@@ -108,6 +108,13 @@ char * MyBigRead(char* DatFilePath)
 	return buffer;
 }
 
+//determine the size of a file on disk
+std::ifstream::pos_type filesize(const char* filename)
+{
+	std::ifstream in(filename, std::ifstream::ate | std::ifstream::binary);
+	return in.tellg(); 
+}
+
 vector<vector<std::string> > MyReadInfile(char* InFilePath)
 {
 
@@ -116,9 +123,7 @@ vector<vector<std::string> > MyReadInfile(char* InFilePath)
 	time_t startm,endm;
 	time (&startm);
 
-	//read the whole file into a buffer using fread
-	char * buffer;
-	buffer = MyBigRead(InFilePath);
+	char * buffer = MyBigRead(InFilePath);
 	stringstream s(buffer); //put giant char array into a stream
 	
 	strcpy(buffer,""); //clear char*
@@ -158,11 +163,12 @@ vector<vector<int> > MyRecode(vector<vector<std::string> > hapvec, std::string m
 	time (&startm);
 
 	//initialize hapvecint, the recoded data
-	vector<vector<int> > hapvecint( hapvec.size(), vector<int>((hapvec[0].size())-1) ); //declare and size vector to hold new integer coded alleles
+	vector<vector<int> > hapvecint( hapvec.size(), vector<int>( (hapvec[0].size())-1) ); //declare and size vector to hold new integer coded alleles
 	
-	//unsigned int iz = ColKeyToAllAlleleByPopList.size();
-	for (unsigned int i=1;i<hapvec[0].size();++i) //go thru each locus
+	for (unsigned int i=1;i<hapvec[0].size();++i) //go thru each locus, start at 1 to skip row label
 	{
+		//cout << "loc=" << i << "\n";
+		
 		vector<std::string> AllelesEncountered; //will contain the unique set of alleles at the locus
 		for (unsigned int k=0;k<hapvec.size();++k) //go thru all individuals
 		{
@@ -171,9 +177,7 @@ vector<vector<int> > MyRecode(vector<vector<std::string> > hapvec, std::string m
 			
 			//search for missing substring
 			std::size_t found = a.find(missingchar);
-			if (found!=std::string::npos) hapvecint[k][ColIndex-1] = -9; //add the missing data value #this puts a missing value for a haplotype 
-			                                                                //that contains any missing nucleotide. this might not be the smartest way to deal with this.
-			                                                                //too conservative? --PR 1/27/14
+			if (found!=std::string::npos) hapvecint[k][ColIndex-1] = -9; //add the missing data value #this puts a missing value for a haplotype that contains any missing nucleotide. this might not be the smartest way to deal with this. too conservative? --PR 1/27/14
 			else
 			{
 				int AlleleInt; //the new, integerized, name of the allele
@@ -183,11 +187,11 @@ vector<vector<int> > MyRecode(vector<vector<std::string> > hapvec, std::string m
 			//cout << "old allele a="<<a<<"\n"; 
 
 					AlleleInt = itr - AllelesEncountered.begin(); //convert itr to index, the index is the integerized allele name
-					hapvecint[k][ColIndex-1] = AlleleInt; //add the new name
+					hapvecint[k][ColIndex-1] = AlleleInt; //add the integerized allele name
 				}
 				else // you have a new allele
 				{
-			//cout << "new allele a="<<a<<"\n"; 
+			//cout << "new allele a="<< a << " " << "AllelesEncountered.size()=" << AllelesEncountered.size() << "\n"; 
 					AllelesEncountered.push_back(a); //add new allele to list of those encountered
 					AlleleInt = AllelesEncountered.size() - 1;  //calculate integerized allele name, starts at 0
 					hapvecint[k][ColIndex-1] = AlleleInt; //ColIndex-1 since hapvecint has no column for indiv id's
@@ -278,7 +282,7 @@ int MyDoReduce(vector<vector<std::string> >& bufvec2d, vector<Location> locs)
 	//extract relevant data
 	std::string pb;
 	vector<vector<std::string> > tempvec2d(bufvec2d.size()); //initialize temporary storage with same row number as bufvec2d
-	//add sample names to rows 3 thru end
+	//add sample names to rows 4 thru end
 	for (unsigned int j=3;j<bufvec2d.size();++j)
 	{
 		pb = bufvec2d[j][0];
@@ -305,10 +309,68 @@ int MyDoReduce(vector<vector<std::string> >& bufvec2d, vector<Location> locs)
 	}
 
 	//overwrite bufvec2d for update by reference
+	vector<vector<std::string> >().swap(bufvec2d); //clear bufvec2d prior to filling with new information
 	bufvec2d = tempvec2d;
 
 	return 0;
 }
+
+vector<std::string> MyProcessPopFile(char* PopFilePath, int ploidy)
+{	
+	//read file into a vector, one line per item
+	std::ifstream popfile(PopFilePath);
+	vector<std::string> popvec;
+	std::string foo;
+	while (getline(popfile, foo))//get line from s, put in foo, consecutively
+	{
+		popvec.push_back(foo);  
+	}
+
+	//place into set to determine unique pop names
+	std::set<std::string> popuniq;
+	for (unsigned int i=0;i<popvec.size();++i)
+	{
+		popuniq.insert(popvec[i]); 
+	}
+
+	//label each pop name with consecutive values for each ind
+	vector<std::string> rowlabs(popvec.size());
+	std::string ins = "no"; //match indicator
+	for(set<string>::const_iterator it = popuniq.begin(); it != popuniq.end(); it++)
+	{
+		unsigned int x = 1;
+		unsigned int i = 0;
+		
+		//cout << "i=" << i << ", x=" << x << "\n";
+
+		while ( i < (popvec.size()) )
+		{
+			//test whether current vector element is the same as the unique pop id from set popuniq
+			if ( popvec[i] == *it )
+			{
+				ins = "yes";
+				//repeat ploidy times if above true
+				for (int p=0;p<ploidy;++p)
+				{
+					//add row label for p-th consecutive row
+					rowlabs[i] = (popvec[i] + " " + to_string(x));
+					++i;
+		//cout << "i=" << i << ", x=" << x << "\n";
+				}
+			}
+			
+			if ( ins == "no") ++i;  //index popvec if no match to set iterator
+			if ( ins == "yes" ) 
+			{
+				ins = "no"; //reset match indicator
+				++x; //index ind label only after labeling all rows corresponding to the same ind
+			}
+
+		}
+	}
+	
+	return rowlabs;
+}	
 
 int MyWriteNormal(std::string OutFilePathS, vector<std::string> chrvec, vector<std::string> SNPsizevec, vector<std::string> midptvec, vector<std::string> aacatvec, vector<std::string> blockstartvec, vector<std::string> blockendvec, vector<std::string> ind, vector<vector<int> > hapvecint)
 {
@@ -386,8 +448,9 @@ int MyWriteNormal(std::string OutFilePathS, vector<std::string> chrvec, vector<s
 	return 0;
 }
 
-int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::string> midptvec, vector<std::string> ind, vector<vector<int> > hapvecint)
+int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::string> midptvec, vector<std::string> ind, vector<vector<int> > hapvecint, vector<std::string> rowlabs)
 {
+	
 	//modify file name for m+ .dat and .var format
 	std::string datfile = OutFilePathS + ".dat";
 	std::string varfile = OutFilePathS + ".var";
@@ -398,13 +461,27 @@ int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::s
 	output.close(); //quick open close done to clear any existing file each time program is run
 	output.open(datfile.c_str(), ios::out | ios::app); //open file in append mode
 
-
-
+	std::string linei;
+	std::string datai;
+	for (unsigned int i=0;i<hapvecint.size();++i)
+	{
+		datai.clear();
+		for (unsigned int j=0;j<hapvecint[i].size();++j)
+		{
+			if (j == hapvecint[i].size() - 1) datai += to_string(hapvecint[i][j]);
+			else datai += (to_string(hapvecint[i][j]) + " ");
+		}
+		//cout << "datai=" << datai << "\n";
+		
+		linei = rowlabs[i] + " " + ind[i] + " " + datai;
+		//cout << "linei=" << linei << "\n";
+		output << linei << "\n";
+	}
 
 	//wrap up write dat file
+	output << '\0'; //add null terminator, for some this reason this is necessary for output that exceeds some size unknown to me
 	output.close();
 	
-
 
 	//create locus names
 	std::string loc;
@@ -418,7 +495,6 @@ int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::s
 	}
 
 	//write the var file
-	//ofstream output;
 	output.open(varfile.c_str()); //convert std::string to const char* via c_str()
 	output.close(); //quick open close done to clear any existing file each time program is run
 	output.open(varfile.c_str(), ios::out | ios::app); //open file in append mode
@@ -428,7 +504,9 @@ int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::s
 	{
 		output << locnames[i] << " 2 1 0 1 5\n";
 	}
+
 	//wrap up write var file
+	output << '\0'; //add null terminator, probably not necessary here because var file will seldom exceed size at which null terminator is no longer added, but having two at the end can't hurt
 	output.close();
 
 	return 0;
@@ -579,57 +657,8 @@ int main( int argc, char* argv[] )
 	cout << "  " << (bufvec2d.size() - 3) / ploidy << " individuals, " << bufvec2d.size() - 3 << " haplotypes, " << bufvec2d[0].size() << " SNPs, ploidy = " << ploidy << "N\n";
 	
 	//read the population specification file, process it
-	if (MakeM == "yes")
-	{
-		//2d vector reader used out of laziness
-		vector<vector<std::string> > popvec2d = MyReadInfile(PopFilePath); 
-		//load pop names onto a 1d vector
-		vector<std::string> popvec(popvec2d.size());
-		std::set<std::string> popuniq;
-		for (unsigned int i=0;i<popvec2d.size();++i)
-		{
-			popvec[i] = popvec2d[i][0];
-			popuniq.insert(popvec2d[i][0]); //place into set to determine unique pop names
-		}
-		//label each pop name with consecutive values for each ind
-		vector<std::string> rowlabs(popvec.size());
-		std::string ins = "no"; //match indicator
-		for(set<string>::const_iterator it = popuniq.begin(); it != popuniq.end(); it++)
-   		{
-        	unsigned int x = 1;
-        	unsigned int i = 0;
-        	
-        	cout << "i=" << i << ", x=" << x << "\n";
-
-        	while ( i < (popvec.size()) )
-        	{
-				//test whether current vector element is the same as the unique pop id from set popuniq
-				if ( popvec[i] == *it )
-				{
-					ins = "yes";
-					//repeat ploidy times if above true
-					for (int p=0;p<ploidy;++p)
-					{
-						//add row label for p-th consecutive row
-						rowlabs[i] = (popvec[i] + " " + to_string(x));
-						++i;
-        	cout << "i=" << i << ", x=" << x << "\n";
-					}
- 				}
- 				
- 				if ( ins == "no") ++i;  //index popvec if no match to set iterator
- 				if ( ins == "yes" ) 
- 				{
- 					ins = "no"; //reset match indicator
- 					++x; //index ind label only after labeling all rows corresponding to the same ind
- 				}
-
-        	}
-   		}
-   		
-   		for (unsigned int i=0; i<rowlabs.size();++i) cout << rowlabs[i] << "\n";
-		
-	}	
+	vector<std::string> rowlabs;
+	if (MakeM == "yes") rowlabs = MyProcessPopFile(PopFilePath, ploidy);
 	
 	//reduce data set to regions of interest
 	if (DoReduce == "yes")
@@ -701,7 +730,7 @@ int main( int argc, char* argv[] )
 			hapvec[i-3].push_back(currindiv[0]); //add the indiv id to hapvec, noting correction to index i for starting on fourth line of bufvec2d
 		
 			//cycle through SNPs
-			unsigned long j = 1; //j = allele index (starts at 1 because first column is sample name)
+			unsigned long j = 1; //j = SNP position index (starts at 1 because first column is sample name)
 			unsigned long m = 0; //m = amino acid code index (starts at 0)
 			while (j<currindiv.size()) 
 			{
@@ -897,7 +926,7 @@ int main( int argc, char* argv[] )
 		OutFilePathS += ss.str();
 		
 		MyWriteNormal(OutFilePathS, chrvec, SNPsizevec, midptvec, aacatvec, blockstartvec, blockendvec, ind, hapvecint);
-		if (MakeM == "yes") MyWriteM(OutFilePathS, chrvec, midptvec, ind, hapvecint);
+		if (MakeM == "yes") MyWriteM(OutFilePathS, chrvec, midptvec, ind, hapvecint, rowlabs);
 		
 	}//blocklength range		
 	

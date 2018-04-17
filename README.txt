@@ -3,6 +3,7 @@ Haplotypista generates a new data matrix by combining a given number of SNPs int
 
 To compile:  use "make"
 Usage: haplotypista -i inputfile -o outputfile -b blocklengthstart blocklengthend -m missingdatachar -p ploidy
+      [-g positionsofinterest] [-v popnamemap]
 
 Mandatory command line flags:
 -i    input file 
