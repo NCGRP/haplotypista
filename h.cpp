@@ -463,13 +463,19 @@ int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::s
 
 	std::string linei;
 	std::string datai;
+	std::string foo;
 	for (unsigned int i=0;i<hapvecint.size();++i)
 	{
 		datai.clear();
 		for (unsigned int j=0;j<hapvecint[i].size();++j)
 		{
-			if (j == hapvecint[i].size() - 1) datai += to_string(hapvecint[i][j]);
-			else datai += (to_string(hapvecint[i][j]) + " ");
+			//change coding of missing data value -9
+			if (hapvecint[i][j] == -9) foo = "9999";
+			else foo = to_string(hapvecint[i][j]);
+			
+			//add string value to output variable
+			if (j == hapvecint[i].size() - 1) datai += foo;
+			else datai += (foo + " ");
 		}
 		//cout << "datai=" << datai << "\n";
 		

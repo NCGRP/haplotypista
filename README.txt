@@ -16,7 +16,7 @@ Mandatory command line flags:
 Optional command line flags:
 -g    genomic positions of interest specified in a comma-delimited list of the form:
       1.75000:1.115776,14.8638989:14.8697509
-      Above example specifies bp 75000-115776 of chromosome 1 and bp 14.8697509 of chromosome 14
+      Above example specifies bp 75000-1000000 of chromosome 1 and bp 14.8697509 of chromosome 14
       as positions of interest. Additionally, a line break delimited list may be piped to
       haplotypista.  If both are supplied, the piped list will be used.
 -v    write m+ input files (.var and .dat) for recoded matrices, required argument is a path
@@ -26,8 +26,8 @@ Optional command line flags:
 Examples: ./haplotypista -i hexin.txt -o hexout -l hexlog.txt -b 2 4 -m ? -p 1
           ./haplotypista -i AtExample.txt -o AtExout -l AtExlog.txt -b 5 8 -m ? -p 1
           ./haplotypista -i PopulusExample.txt -o PopExout -l PopExlog.txt -b 1 4 -m ? -p 2 
-          ./haplotypista -i PopulusExample.txt -o PopEx2out -l PopEx2log.txt -b 1 4 -m ? -p 2 -g 1.75000:1.115776,14.8697509:14.8697509 -v Poppopid.txt
-
+          ./haplotypista -i PopulusExample.txt -o PopEx2out -l PopEx2log.txt -b 1 4 -m ? -p 2 -g 1.75000:1.1000000,14.8697509:14.8697509 -v Poppopid.txt
+          ./haplotypista -i AtExample.txt -o AtEx2out -l AtEx2log.txt -b 5 8 -m ? -p 1 -g 2.1:2.10000000 -v Atpopid.txt
 
 Input file format:
 First row--space delimited list assigning SNP to chromosome
