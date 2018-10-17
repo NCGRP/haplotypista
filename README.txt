@@ -15,8 +15,8 @@ Mandatory command line flags:
 
 Optional command line flags:
 -g    genomic positions of interest specified in a comma-delimited list of the form:
-      1.75000:1.1000000,14.8638989:14.8697509
-      Above example specifies bp 75000-1000000 of chromosome 1 and bp 14.8697509 of chromosome 14
+      1.75000:1.1000000,14.8697509:14.8697509
+      Above example specifies bp 75000-1000000 of chromosome 1 and bp 8697509 of chromosome 14
       as positions of interest. Additionally, a line break delimited list may be piped to
       haplotypista.  If both are supplied, the piped list will be used.
 -v    write m+ input files (.var and .dat) for recoded matrices, required argument is a path
