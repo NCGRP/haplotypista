@@ -23,11 +23,11 @@ Optional command line flags:
       to a file containing a line break delimited list that maps sample names to populations.
       
 
-Examples: ./haplotypista -i hexin.txt -o hexout -l hexlog.txt -b 2 4 -m ? -p 1
-          ./haplotypista -i AtExample.txt -o AtExout -l AtExlog.txt -b 5 8 -m ? -p 1
-          ./haplotypista -i PopulusExample.txt -o PopExout -l PopExlog.txt -b 1 4 -m ? -p 2 
-          ./haplotypista -i PopulusExample.txt -o PopEx2out -l PopEx2log.txt -b 1 4 -m ? -p 2 -g 1.75000:1.1000000,14.8697509:14.8697509 -v Poppopid.txt
-          ./haplotypista -i AtExample.txt -o AtEx2out -l AtEx2log.txt -b 5 8 -m ? -p 1 -g 2.1:2.10000000 -v Atpopid.txt
+Examples: ./haplotypista -i hexin.txt -o hexout -b 2 4 -m ? -p 1
+          ./haplotypista -i AtExample.txt -o AtExout -b 5 8 -m ? -p 1
+          ./haplotypista -i PopulusExample.txt -o PopExout -b 1 4 -m ? -p 2 
+          ./haplotypista -i PopulusExample.txt -o PopEx2out -b 1 4 -m ? -p 2 -g 1.75000:1.1000000,14.8697509:14.8697509 -v Poppopid.txt
+          ./haplotypista -i AtExample.txt -o AtEx2out -b 5 8 -m ? -p 1 -g 2.1:2.10000000 -v Atpopid.txt
 
 Input file format:
 First row--space delimited list assigning SNP to chromosome
