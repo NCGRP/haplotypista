@@ -240,7 +240,7 @@ vector<Location> MyProcessLocations(std::string in, std::string& DoReduce)
 		}
 		if ( ll[0] != ll[2] ) 
 		{
-			cout << "Range specifications for regions of interest can not span chromosomes. Quitting...\n";
+			cout << "Range specification for included regions can not span chromosomes (-g). Quitting...\n";
 			exit (EXIT_FAILURE);
 		}
 		Location loc { ll[0], ll[1], ll[3] };

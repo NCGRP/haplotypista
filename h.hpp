@@ -21,7 +21,7 @@ using namespace std;
 //holds ranges for genomic regions of interest
 struct Location
 {
-  unsigned long long chr; //chromosome
+  unsigned long long chr; //chromosome or fragment name
   unsigned long long beginloc;
   unsigned long long endloc;
 };
