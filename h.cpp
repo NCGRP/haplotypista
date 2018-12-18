@@ -225,7 +225,7 @@ vector<Location> MyProcessLocations(std::string in, std::string& DoReduce)
 	std::replace( in.begin(), in.end(), ',', ' '); //replace all commas with space
 	vector<string> ranges = split(in); //split space delimited string into vector with entry like 1.2355:1.6952 to specify a single range
 	
-	for (unsigned int i=0;i<ranges.size();++i)
+	for (unsigned long long i=0;i<ranges.size();++i)
 	{
 		a = ranges[i];
 		std::replace( a.begin(), a.end(), ':', ' ' );
@@ -240,43 +240,53 @@ vector<Location> MyProcessLocations(std::string in, std::string& DoReduce)
 		}
 		if ( ll[0] != ll[2] ) 
 		{
-			cout << "Range specification for included regions can not span chromosomes (-g). Quitting...\n";
+			cout << "Range specification (-g) can not span chromosomes . Quitting...\n";
 			exit (EXIT_FAILURE);
 		}
-		Location loc { ll[0], ll[1], ll[3] };
+		Location loc { std::make_pair(ll[0],i), ll[1], ll[3] };
+//		Location loc { ll[0], ll[1], ll[3] };
 		locs.push_back(loc); 
 	}
 	return locs;
 }
 
-int MyDoReduce(vector<vector<std::string> >& bufvec2d, vector<Location> locs)
+vector<std::string> MyDoReduce(vector<vector<std::string> >& bufvec2d, vector<Location> locs)
 {
-	unsigned long long chr;
+	std::string chr;
+	std::string rangeid;
 	unsigned long long beginloc;
 	unsigned long long endloc;
 	vector<unsigned long long> incvec; //will hold indexes of all columns to be included from rows containing genotypic data
+	vector<std::string> rangevec; //will hold rangeid from MyProcessLocations for each column, original fragment name in
+	                              //bufvec2d[0] will be converted to this rangeid to treat each user defined fragment (-g)
+	                              //independently so that multiple ranges per chromosome and overlapping ranges are allowed
+	vector<std::string> chrwrite; //will hold the original fragment names, not the supplanting range ids, so that final output
+	                              //can contain sensible locations
 		
-	
-	for (unsigned int l=0;l<locs.size();++l)
+	for (unsigned long long l=0;l<locs.size();++l)
 	{
-		 
-		 chr = locs[l].chr; //get the chromosome for current location
-		 beginloc = locs[l].beginloc;
-		 endloc = locs[l].endloc;
-		 //cout << "l=" << l << "beginloc=" << beginloc << "endloc=" << endloc << "\n";
-		 
-		 //extract index values to locate columns in bufvec2d that correspond to regions of interest
-		 //if statement tests: chr is correct, position is between range specified in locs[l]
-		 for (unsigned long long i=0;i<bufvec2d[0].size();++i)
-		 {
-		 	if ( (stoull(bufvec2d[0][i]) == chr) && (stoull(bufvec2d[1][i]) >= beginloc) && (stoull(bufvec2d[1][i]) <= endloc) )
-		 	{
-		 		incvec.push_back(i+1);
-		 		//cout << "i+1=" << i+1 << "\n";	
-		 		//cout << " " << stoull(bufvec2d[0][i]) << "\n";
-		 		//cout << " " << stoull(bufvec2d[1][i]) << "\n";
-		 	}
-		 }
+		
+		chr = to_string(locs[l].chr.first); //get the chromosome for current location
+		rangeid = to_string(locs[l].chr.second); //get the range id for the current range as string
+		beginloc = locs[l].beginloc;
+		endloc = locs[l].endloc;
+		//cout << "l=" << l << " chr=" << chr << " rangeid=" << rangeid << " beginloc=" << beginloc << " endloc=" << endloc << "\n";
+		
+		//extract index values to locate columns in bufvec2d that correspond to regions of interest
+		//if statement tests: chr is correct, position is between range specified in locs[l]
+		for (unsigned long long i=0;i<bufvec2d[0].size();++i)
+		{
+			if ( (bufvec2d[0][i] == chr) && (stoull(bufvec2d[1][i]) >= beginloc) && (stoull(bufvec2d[1][i]) <= endloc) )
+			{
+				incvec.push_back(i+1);
+				rangevec.push_back(rangeid); //list of rangeids to supplant original fragment names
+				chrwrite.push_back(chr); //original fragment name preserved in chrwrite
+				//cout << "i=" << i << " rangeid=" << rangeid << "\n";
+				//cout << "i+1=" << i+1 << "\n";	
+				//cout << " " << stoull(bufvec2d[0][i]) << "\n";
+				//cout << " " << stoull(bufvec2d[1][i]) << "\n";
+			}
+		}
 	}
 	
 	//extract relevant data
@@ -295,7 +305,12 @@ int MyDoReduce(vector<vector<std::string> >& bufvec2d, vector<Location> locs)
 		for (unsigned int i=0;i<incvec.size();++i)
 		{
 			//treat 1st three rows differently, use indexed position -1
-			if ( j <= 2 )
+			if ( j == 0 )
+			{
+				pb = rangevec[i]; //replace original fragment name with range id
+				tempvec2d[j].push_back(pb);
+			}
+			else if ( j == 1 || j == 2 )
 			{
 				pb = bufvec2d[j][incvec[i]-1];
 				tempvec2d[j].push_back(pb);
@@ -312,7 +327,7 @@ int MyDoReduce(vector<vector<std::string> >& bufvec2d, vector<Location> locs)
 	vector<vector<std::string> >().swap(bufvec2d); //clear bufvec2d prior to filling with new information
 	bufvec2d = tempvec2d;
 
-	return 0;
+	return chrwrite;
 }
 
 vector<std::string> MyProcessPopFile(char* PopFilePath, int ploidy)
@@ -372,8 +387,9 @@ vector<std::string> MyProcessPopFile(char* PopFilePath, int ploidy)
 	return rowlabs;
 }	
 
-int MyWriteNormal(std::string OutFilePathS, vector<std::string> chrvec, vector<std::string> SNPsizevec, vector<std::string> midptvec, vector<std::string> aacatvec, vector<std::string> blockstartvec, vector<std::string> blockendvec, vector<std::string> ind, vector<vector<int> > hapvecint)
+int MyWriteNormal(std::string OutFilePathS, vector<std::string> chrvec, vector<std::string> chrwritevec, vector<std::string> SNPsizevec, vector<std::string> midptvec, vector<std::string> aacatvec, vector<std::string> blockstartvec, vector<std::string> blockendvec, vector<std::string> ind, vector<vector<int> > hapvecint, std::string DoReduce)
 {
+	cout << "Writing standard output...\n";
 	OutFilePathS += ".txt";
 	//write the new data matrix to the output file
 	ofstream output;
@@ -382,10 +398,13 @@ int MyWriteNormal(std::string OutFilePathS, vector<std::string> chrvec, vector<s
 	output.open(OutFilePathS.c_str(), ios::out | ios::app); //open file in append mode
 
 	//write chromosomal location
-	for (unsigned int i=0;i<chrvec.size();++i)
+	vector<std::string> cvec;
+	if ( DoReduce == "yes" ) cvec = chrwritevec;
+	else cvec = chrvec;
+	for (unsigned int i=0;i<cvec.size();++i)
 	{
-		if (i == chrvec.size() - 1) output << chrvec[i];
-		else output << chrvec[i] << " ";
+		if (i == cvec.size() - 1) output << cvec[i];
+		else output << cvec[i] << " ";
 	}
 	output << "\n";
 
@@ -448,9 +467,10 @@ int MyWriteNormal(std::string OutFilePathS, vector<std::string> chrvec, vector<s
 	return 0;
 }
 
-int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::string> midptvec, vector<std::string> ind, vector<vector<int> > hapvecint, vector<std::string> rowlabs)
+int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::string> chrwritevec, vector<std::string> midptvec, vector<std::string> ind, vector<vector<int> > hapvecint, vector<std::string> rowlabs, std::string DoReduce)
 {
-	
+	cout << "Writing M+ output...\n";
+
 	//modify file name for m+ .dat and .var format
 	std::string datfile = OutFilePathS + ".dat";
 	std::string varfile = OutFilePathS + ".var";
@@ -492,10 +512,13 @@ int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::s
 	//create locus names
 	std::string loc;
 	vector<std::string> locnames;
+	vector<std::string> cvec; //holds the original fragment names to write
+	if ( DoReduce == "yes" ) cvec = chrwritevec;
+	else cvec = chrvec;
 	unsigned long long j = 1;
-	for (unsigned int i=0;i<chrvec.size();++i)
+	for (unsigned int i=0;i<cvec.size();++i)
 	{
-		loc = chrvec[i] + "." + midptvec[i] + "." + to_string(j);
+		loc = cvec[i] + "." + midptvec[i] + "." + to_string(j);
 		locnames.push_back(loc);
 		++j;
 	}
@@ -611,7 +634,7 @@ int main( int argc, char* argv[] )
 	
 		for (int i=0;i<locs.size();++i)
 		{
-			cout << i << " " << locs[i].chr << " " << locs[i].beginloc << " " << locs[i].endloc << "\n";
+			cout << i << " " << locs[i].chr.first << " " << locs[i].chr.second << " " << locs[i].beginloc << " " << locs[i].endloc << "\n";
 		}
 	*/
 	
@@ -667,12 +690,16 @@ int main( int argc, char* argv[] )
 	if (MakeM == "yes") rowlabs = MyProcessPopFile(PopFilePath, ploidy);
 	
 	//reduce data set to regions of interest
+	//when DoReduce="yes", chr and chrvec contain range ids for fragments, not original fragment names.
+	//when DoReduce="yes", chrwrite and chrwritevec contain the original fragment names that correspond to the -g selected regions
+	vector<std::string> chrwrite;
+	vector<std::string> chrwritevec;
 	if (DoReduce == "yes")
 	{
-		MyDoReduce(bufvec2d, locs); //updates bufvec2d as reference
+		chrwrite = MyDoReduce(bufvec2d, locs); //updates bufvec2d as reference
 		
 		//print out stats on reduced file
-		cout << "Reducing data set to positions of interest...\n";
+		cout << "Reducing data set to genomic positions defined by -g...\n";
 		cout << "Reduced data set contains:\n";
 		cout << "  " << (bufvec2d.size() - 3) / ploidy << " individuals, " << bufvec2d.size() - 3 << " haplotypes, " << bufvec2d[0].size() << " SNPs, ploidy = " << ploidy << "N\n";
 	}
@@ -705,8 +732,7 @@ int main( int argc, char* argv[] )
 	vector<std::string> blockstartvec; //will contain the nucleotide position of the first SNP of the haplotype block
 	vector<std::string> blockendvec; //will contain the nucleotide position of the last SNP of the haplotype block
 
-	
-	vector<std::string> chr = bufvec2d[0]; //get list of chromosome designation for each SNP
+	vector<std::string> chr = bufvec2d[0]; //get list of chromosome designation for each SNP, this is rangeid when DoReduce="yes"
 	vector<std::string> pos = bufvec2d[1]; //get list of positions of SNPs on chromosome
 	vector<std::string> aacat = bufvec2d[2]; //get list of amino acid category of each SNP
 	
@@ -723,6 +749,7 @@ int main( int argc, char* argv[] )
 		vector<std::string>().swap(SNPsizevec); //clear SNPsizevec
 		vector<std::string>().swap(midptvec); //clear midptvec
 		vector<std::string>().swap(chrvec); //clear chrvec
+		vector<std::string>().swap(chrwritevec); //clear chrwritevec
 		vector<std::string>().swap(aacatvec); //clear aacatvec
 		vector<std::string>().swap(blockstartvec); //clear blockstartvec
 		vector<std::string>().swap(blockendvec); //clear blockendvec
@@ -740,7 +767,9 @@ int main( int argc, char* argv[] )
 			unsigned long m = 0; //m = amino acid code index (starts at 0)
 			while (j<currindiv.size()) 
 			{
-				string startchr = chr[j-1];//get the chromosome of the starting SNP for the fusion
+				string startchr = chr[j-1];//get the chromosome of the starting SNP for the fusion, =rangeid when DoReduce="yes"
+				string startchrwrite; //initialize variable only useful MyReduce="yes"
+				if (DoReduce == "yes") startchrwrite = chrwrite[j-1]; //get the original fragment name of the starting SNP for the fusion
 				unsigned long long startpos = posull[j-1]; //get start position
 				unsigned long k = 0;
 				std::string newallele;
@@ -823,6 +852,7 @@ int main( int argc, char* argv[] )
 							
 							//make note of the chromosomal location of the new fusion product
 							chrvec.push_back(startchr);
+							if (DoReduce == "yes") chrwritevec.push_back(startchrwrite);
 						}
 					}
 			
@@ -931,8 +961,8 @@ int main( int argc, char* argv[] )
 		ss << b;
 		OutFilePathS += ss.str();
 		
-		MyWriteNormal(OutFilePathS, chrvec, SNPsizevec, midptvec, aacatvec, blockstartvec, blockendvec, ind, hapvecint);
-		if (MakeM == "yes") MyWriteM(OutFilePathS, chrvec, midptvec, ind, hapvecint, rowlabs);
+		MyWriteNormal(OutFilePathS, chrvec, chrwritevec, SNPsizevec, midptvec, aacatvec, blockstartvec, blockendvec, ind, hapvecint, DoReduce);
+		if (MakeM == "yes") MyWriteM(OutFilePathS, chrvec, chrwritevec, midptvec, ind, hapvecint, rowlabs, DoReduce);
 		
 	}//blocklength range		
 	
