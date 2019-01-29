@@ -1,5 +1,6 @@
 Haplotypista generates a new data matrix by combining a given number of SNPs into a single haplotype block.
-	Each unique haplotype block is given a new, integer-coded, allelic state.  Also calculates block length.
+	Each unique haplotype block is given a new, integer-coded, allelic state.  Also calculates physical
+	length of resulting blocks.
 
 To compile:  use "make"
 Usage: haplotypista -i inputfile -o outputfile -b minblocklength maxblocklength -m missingdatachar -p ploidy
@@ -9,7 +10,7 @@ Mandatory command line flags:
 -i    input file 
 -o    output file root
 -b    range of haplotype block lengths to consider, where blocklength = number of adjacent
-      SNPs to be combined
+      SNPs to be combined. -b 0 0 combines all SNPs in each fragment into a single haplotype block
 -m    missing data character used in the input file
 -p    ploidy, 1 = haploid, 2 = diploid, etc.
 
@@ -75,8 +76,8 @@ Produces a series of output data sets with unique haplotypes recoded as unique i
 	
 Also produces a log file containing summary statistics for the output data sets.  Column
 	headers are as follows:
-	b = haplotype block length
-	chromosome = fragment number ("0" indicates all combined)
+	b = haplotype block length ("max" indicates a single haplotype block was computed for all SNPs in each fragment)
+	fragment = fragment name ("all" indicates all fragments combined)
 	n loci = number of loci used for allele count statistics
 	Mean allele count = average number of alleles across recoded loci
 	SD allele count = standard deviation of allele count across recoded loci

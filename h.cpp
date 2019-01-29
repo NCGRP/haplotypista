@@ -556,8 +556,9 @@ int main( int argc, char* argv[] )
 	std::string missingchar;
 	int ploidy;
 	vector <Location> locs; //holds ranges for genomic regions of interest
-	std::string DoReduce = "no";
-	std::string MakeM = "no";
+	std::string DoReduce = "no"; //reduce data set size to just those regions specified by -g or piped in
+	std::string MakeM = "no"; //make M+ output files
+	std::string DoMaxHL = "no"; //combine all SNPs from each fragment into a single haplotype block (maximum haplotype length)
 	for (int i=0;i<argc;i++)
 	{
 		if ( string(argv[i]) == "-i" ) 
@@ -578,8 +579,9 @@ int main( int argc, char* argv[] )
 */
 		if ( string(argv[i]) == "-b" ) 
     	{
-		 	bstart = strtoul( argv[i+1], NULL, 10);
-		 	bend = strtoul( argv[i+2], NULL, 10);
+			bstart = strtoul( argv[i+1], NULL, 10);
+			bend = strtoul( argv[i+2], NULL, 10);
+			if ( (bstart == 0) && (bend == 0) ) DoMaxHL = "yes";
 		}
 
 		if ( string(argv[i]) == "-m" ) 
@@ -622,11 +624,11 @@ int main( int argc, char* argv[] )
 		}
 		pipedin.pop_back();//remove hanging comma
 		locs = MyProcessLocations(pipedin, DoReduce);
-		cout << "\n" << "pipedin=" << pipedin << "\n";
+		cout << "\n" << "Piped genomic regions = " << pipedin << "\n";
 	
 	}
 	
-	/* write out command line options and genes of interest specification
+	/* write out command line arguments and regions of interest
 		for (int i=0;i<argc;i++)
 		{
 			cout << argv[i] << "\n";	
@@ -690,6 +692,7 @@ int main( int argc, char* argv[] )
 	if (MakeM == "yes") rowlabs = MyProcessPopFile(PopFilePath, ploidy);
 	
 	//reduce data set to regions of interest
+	//when DoReduce="no", chr and chrvec contain original fragment names
 	//when DoReduce="yes", chr and chrvec contain range ids for fragments, not original fragment names.
 	//when DoReduce="yes", chrwrite and chrwritevec contain the original fragment names that correspond to the -g selected regions
 	vector<std::string> chrwrite;
@@ -699,7 +702,7 @@ int main( int argc, char* argv[] )
 		chrwrite = MyDoReduce(bufvec2d, locs); //updates bufvec2d as reference
 		
 		//print out stats on reduced file
-		cout << "Reducing data set to genomic positions defined by -g...\n";
+		cout << "Reducing data set to genomic positions defined by -g (or piped in)...\n";
 		cout << "Reduced data set contains:\n";
 		cout << "  " << (bufvec2d.size() - 3) / ploidy << " individuals, " << bufvec2d.size() - 3 << " haplotypes, " << bufvec2d[0].size() << " SNPs, ploidy = " << ploidy << "N\n";
 	}
@@ -720,7 +723,7 @@ int main( int argc, char* argv[] )
 	logger.open(LogFilePath.c_str());
 	logger.close(); //quick open close done to clear any existing file each time program is run
 	logger.open(LogFilePath.c_str(), ios::out | ios::app); //open file in append mode
-	logger << "b	chromosome	n loci	Mean allele count	SD allele count	n haplotype length	Mean haplotype length	SD haplotype length\n";
+	logger << "b	fragment	n loci	Mean allele count	SD allele count	n haplotype length	Mean haplotype length	SD haplotype length\n";
 	
 	//COMBINE ADJACENT ALLELES INTO HAPLOTYPES
 	cout << "Compressing haplotypes...\n";
@@ -731,10 +734,43 @@ int main( int argc, char* argv[] )
 	vector<std::string> aacatvec; //will contain the counts of non-genic, synonymous, and non-synonymous sites contained in the fused region in the form {4 1 0, 3 0 2, 5 0 0}
 	vector<std::string> blockstartvec; //will contain the nucleotide position of the first SNP of the haplotype block
 	vector<std::string> blockendvec; //will contain the nucleotide position of the last SNP of the haplotype block
+	vector<std::pair<string,unsigned long long> > bmaxvec; //contains the maximum haplotype block length, measured in SNPs, for each fragment/rangeid. Like rangeid:maxSNPs
 
 	vector<std::string> chr = bufvec2d[0]; //get list of chromosome designation for each SNP, this is rangeid when DoReduce="yes"
 	vector<std::string> pos = bufvec2d[1]; //get list of positions of SNPs on chromosome
 	vector<std::string> aacat = bufvec2d[2]; //get list of amino acid category of each SNP
+
+	if (DoMaxHL == "yes")
+	{
+		//get fragment names/range ids contained in chr (i.e. bufvec2d[0]), in original order (do not sort)
+		//when piping in ranges (or -g), chr contains rangeids, otherwise it contains fragment names from original input file
+		//determine unique elements in chr
+		vector<std::string> chrelements = bufvec2d[0];
+		std::vector<string>::iterator itr;
+		itr = std::unique(chrelements.begin(), chrelements.end());
+		chrelements.resize( std::distance(chrelements.begin(),itr) );
+
+		/* print out chrelements
+		cout << "chrelements contains:\n";
+		for (itr=chrelements.begin(); itr!=chrelements.end(); ++itr) cout << ' ' << *itr;
+		cout << '\n';
+		*/
+
+		//count occurrences of unique elements, push back onto vector bmaxvec, which holds maximum number of snps per fragment/rangeid
+		for (unsigned int i=0;i<chrelements.size();++i)
+			{
+				std::pair<string,unsigned long long> pp;
+				unsigned long long count = std::count(bufvec2d[0].begin(), bufvec2d[0].end(), chrelements[i]); //number of occurrences of chrelements[i]
+				pp = std::make_pair(chrelements[i],count);
+				bmaxvec.push_back(pp);
+			}	
+		
+		/* print out bmaxvec
+		cout << "bmaxvec.size()=" << bmaxvec.size() << "\n";
+		cout << "bmaxvec contains:\n";
+		for (unsigned int i=0;i<bmaxvec.size();++i) cout << i << " " << bmaxvec[i].first << " " << bmaxvec[i].second << "\n";
+		*/
+	}
 	
 	unsigned long long maxpos = 0; //updated as reference in MyVecToUll
 	vector<unsigned long long> posull = MyVecToULL(pos, maxpos); //convert string vector to unsigned long long vector
@@ -757,8 +793,11 @@ int main( int argc, char* argv[] )
 		//cycle through SNPs, one individual at a time
 		for (unsigned long i=3;i<bufvec2d.size();++i) //start at fourth row
 		{
-			cout << bufvec2d[i][0] << ", haplotype "<<i-2<<"/"<<bufvec2d.size() - 3<<" with blocklength "<<b<<"/"<<bend<<"\n";
-		
+			if (DoMaxHL == "yes")
+				cout << bufvec2d[i][0] << ", haplotype "<<i-2<<"/"<<bufvec2d.size() - 3<<"\n";
+			else
+				cout << bufvec2d[i][0] << ", haplotype "<<i-2<<"/"<<bufvec2d.size() - 3<<" with blocklength = "<<b<<" (max="<<bend<<")\n";
+			
 			vector<std::string> currindiv = bufvec2d[i]; //for convenience get the current indiv SNPs as a separate vector
 			hapvec[i-3].push_back(currindiv[0]); //add the indiv id to hapvec, noting correction to index i for starting on fourth line of bufvec2d
 		
@@ -767,8 +806,20 @@ int main( int argc, char* argv[] )
 			unsigned long m = 0; //m = amino acid code index (starts at 0)
 			while (j<currindiv.size()) 
 			{
-				string startchr = chr[j-1];//get the chromosome of the starting SNP for the fusion, =rangeid when DoReduce="yes"
-				string startchrwrite; //initialize variable only useful MyReduce="yes"
+				std::string startchr = chr[j-1];//get the chromosome of the starting SNP for the fusion, when DoReduce="yes" this is the rangeid
+				                                //each time you are here you are starting a new fragment so you can follow along with bmaxvec
+
+				if (DoMaxHL == "yes")
+				{
+					//find startchr (i.e. fragment name/rangeid) in bmaxvec, return max number of snps possible
+					auto itr = std::find_if(bmaxvec.begin(), bmaxvec.end(), [&startchr](std::pair<std::string, unsigned long long> const& elem) {return elem.first == startchr;});
+					//cout << "startchr=" << startchr << "\n";
+					//cout << "itr->first=" << itr->first << "\n";//print first partner in matched pair referenced by 'itr'
+					//cout << "itr->second=" << itr->second << "\n";
+					b = itr->second; //set bmax
+				}
+
+				std::string startchrwrite; //initialize variable only useful when DoReduce="yes"
 				if (DoReduce == "yes") startchrwrite = chrwrite[j-1]; //get the original fragment name of the starting SNP for the fusion
 				unsigned long long startpos = posull[j-1]; //get start position
 				unsigned long k = 0;
@@ -779,7 +830,7 @@ int main( int argc, char* argv[] )
 					if (chr[j-1] == startchr) //verify that current SNP is on the same chromosome as the starting SNP for the fusion
 					{
 						newallele += currindiv[j]; //concatenate the allele calls for the current block
-						if (i ==3)
+						if (i == 3)
 						{
 							newaacats += aacat[m]; //concatenate the amino acid category codes for the current block, only need to do this when working on first individual since it will be the same for all
 						}
@@ -791,88 +842,82 @@ int main( int argc, char* argv[] )
 								//A truncated fusion product may remain!!
 				}
 		
-				
-				
-					//calculate length of SNP region fused, the midpoint of haplotype block, and the frequency of non-genic, non-synonymous, and synonymous SNPs in the block
-					//add to vectors
-					//do this only for individual #1, since it is the same for all
-					if (i == 3)
+				//calculate length of SNP region fused, the midpoint of haplotype block, and the frequency of non-genic, non-synonymous, and synonymous SNPs in the block
+				//add to vectors
+				//do this only for individual #1, since it is the same for all
+				if (i == 3)
+				{
+					//calculate length
+					unsigned long long endpos = posull[j-2];//determine the end position, it is the previous SNP, (j-1)-1 = j-2
+					unsigned long long SNPlen = endpos - startpos + 1;  //+1 to include the SNP position on both ends
+					if ( SNPlen > maxpos ) 
 					{
-						//calculate length
-						unsigned long long endpos = posull[j-2];//determine the end position, it is the previous SNP, (j-1)-1 = j-2
-						unsigned long long SNPlen = endpos - startpos + 1;  //+1 to include the SNP position on both ends
-						if ( SNPlen > maxpos ) 
-						{
-							cout << "An error has occurred. endpos="<<endpos<<", startpos="<<startpos<<", SNPlen="<<SNPlen<<"\n  SNP order may not be consecutive.\n";
-						}
-					
-						//calculate midpt
-						unsigned long long midpt = startpos+(SNPlen/2);
-					
-						//calculate amino acid category code frequencies
-						unsigned long long ng = std::count(newaacats.begin(), newaacats.end(), '0'); //number of non-genic SNPs contained in the haplotype block
-						unsigned long long syn = std::count(newaacats.begin(), newaacats.end(), '1'); //number of synonymous SNPs contained in the haplotype block
-						unsigned long long ns = std::count(newaacats.begin(), newaacats.end(), '2'); //number of non-synonymous SNPs contained in the haplotype block
-					
-						//test whether the number of SNPs included in the haplotype is equal to the blocklength, i.e. is the haplotype truncated?
-						//if the haplotype is not truncated, include it in the output
-						if (newallele.length() == b)
-						{
-							//cout << startchr << "\t" << j << "\t" << startpos << "\t" << endpos << "\t" << SNPlen << "\t" << midpt << "\n";
-			
-							//add the block length to SNPsizevec
-							stringstream ss;
-							ss << SNPlen;
-							string str = ss.str();
-							SNPsizevec.push_back(str);
-					
-							//add the midpoint of the haplotype block to midptvec
-							stringstream sd;
-							sd << midpt;
-							str = sd.str();
-							midptvec.push_back(str);
-					
-							//add the amino acid category codes to aacatvec
-							stringstream se;
-							se << ng << ":" << syn << ":" << ns;
-							str = se.str();
-							aacatvec.push_back(str);
-							
-							//add the position of the first SNP in block to blockstartvec
-							stringstream sf;
-							sf << startpos;
-							str = sf.str();
-							blockstartvec.push_back(str);
-							
-							//add the position of the last SNP in block to blockendvec
-							stringstream sg;
-							sg << endpos;
-							str = sg.str();
-							blockendvec.push_back(str);
-							
-							//make note of the chromosomal location of the new fusion product
-							chrvec.push_back(startchr);
-							if (DoReduce == "yes") chrwritevec.push_back(startchrwrite);
-						}
+						cout << "An error has occurred. endpos="<<endpos<<", startpos="<<startpos<<", SNPlen="<<SNPlen<<"\n  SNP order may not be consecutive.\n";
 					}
-			
-					//add the new fused allele to the data for this individual
-					//but only if the fusion product is not truncated
-					//cout << "b=" << b << "newaacats.length()=" << newaacats.length() << "\t" << "newallele.length()=" << newallele.length() << "\n";
+				
+					//calculate midpt
+					unsigned long long midpt = startpos+(SNPlen/2);
+				
+					//calculate amino acid category code frequencies
+					unsigned long long ng = std::count(newaacats.begin(), newaacats.end(), '0'); //number of non-genic SNPs contained in the haplotype block
+					unsigned long long syn = std::count(newaacats.begin(), newaacats.end(), '1'); //number of synonymous SNPs contained in the haplotype block
+					unsigned long long ns = std::count(newaacats.begin(), newaacats.end(), '2'); //number of non-synonymous SNPs contained in the haplotype block
+				
+					//test whether the number of SNPs included in the haplotype is equal to the blocklength, i.e. is the haplotype truncated?
+					//if the haplotype is not truncated, include it in the output
 					if (newallele.length() == b)
 					{
-						hapvec[i-3].push_back(newallele);
-					}
-			
+						//cout << startchr << "\t" << j << "\t" << startpos << "\t" << endpos << "\t" << SNPlen << "\t" << midpt << "\n";
+		
+						//add the block length to SNPsizevec
+						stringstream ss;
+						ss << SNPlen;
+						string str = ss.str();
+						SNPsizevec.push_back(str);
 				
-
+						//add the midpoint of the haplotype block to midptvec
+						stringstream sd;
+						sd << midpt;
+						str = sd.str();
+						midptvec.push_back(str);
+				
+						//add the amino acid category codes to aacatvec
+						stringstream se;
+						se << ng << ":" << syn << ":" << ns;
+						str = se.str();
+						aacatvec.push_back(str);
+						
+						//add the position of the first SNP in block to blockstartvec
+						stringstream sf;
+						sf << startpos;
+						str = sf.str();
+						blockstartvec.push_back(str);
+						
+						//add the position of the last SNP in block to blockendvec
+						stringstream sg;
+						sg << endpos;
+						str = sg.str();
+						blockendvec.push_back(str);
+						
+						//make note of the chromosomal location of the new fusion product
+						chrvec.push_back(startchr);
+						if (DoReduce == "yes") chrwritevec.push_back(startchrwrite);
+					}
+				}
+		
+				//add the new fused allele to the data for this individual
+				//but only if the fusion product is not truncated
+				//cout << "b=" << b << "newaacats.length()=" << newaacats.length() << "\t" << "newallele.length()=" << newallele.length() << "\n";
+				if (newallele.length() == b)
+				{
+					hapvec[i-3].push_back(newallele);
+				}
 			}//snp
 		}//individual
 		
-		
-		
 		//translate concatenated binary codes into integer allele calls
 		vector<vector<int> > hapvecint = MyRecode(hapvec, missingchar);
+		
 		
 		//WRITE LOG FILE
 		cout << "Calculating statistics...\n";
@@ -882,7 +927,6 @@ int main( int argc, char* argv[] )
 		vector<int> allelecounts(hapvecint[0].size());
 		vector<unsigned long long> sizevec(hapvecint[0].size());
 		vector<unsigned long long> SNPsizevecULL = MyVecToULL(SNPsizevec, maxpos); //convert string vector to unsigned long long vector
-
 
 		//calculate mean allele counts and haplotype lengths for entire data set, log
 		//get max value for each haplotype in hapvecintj. number of alleles = max + 1 (since 0 is an allele)
@@ -906,8 +950,14 @@ int main( int argc, char* argv[] )
 			meanhl = MyMeanULL(SNPsizevecULL);
 			sdhl = MyStdevULL(meanhl, SNPsizevecULL);
 		}
-		logger << b << "\t" << "0" << "\t" << nac << "\t" << meanac << "\t" << sdac << "\t" << nhl << "\t" << meanhl << "\t" << sdhl << "\n"; //chrname = 0 means all chromosomes
-
+		
+		//write to log
+		if (DoMaxHL == "yes") 
+			logger << "max" << "\t" << "all" << "\t" << nac << "\t" << meanac << "\t" << sdac << "\t" << nhl << "\t" << meanhl << "\t" << sdhl << "\n"; //chrname = 0 means all chromosomes
+		else
+			logger << b << "\t" << "all" << "\t" << nac << "\t" << meanac << "\t" << sdac << "\t" << nhl << "\t" << meanhl << "\t" << sdhl << "\n"; //chrname = 0 means all chromosomes
+		
+		
 		//calculate chromosome specific means, log. have to use chrvec, not chr, because chr has all SNPs, not fused haplotypes
 		unsigned long long h = 0; //h indexes thru haplotypes
 		while (h != hapvecint[0].size())
@@ -943,7 +993,14 @@ int main( int argc, char* argv[] )
 				meanhl = MyMeanULL(sizevec);
 				sdhl = MyStdevULL(meanhl, sizevec);
 			}
+
+
+		//write to log
+		if (DoMaxHL == "yes") 
+			logger << "max" << "\t" << chrname << "\t" << nac << "\t" << meanac << "\t" << sdac << "\t" << nhl << "\t" << meanhl << "\t" << sdhl << "\n";
+		else
 			logger << b << "\t" << chrname << "\t" << nac << "\t" << meanac << "\t" << sdac << "\t" << nhl << "\t" << meanhl << "\t" << sdhl << "\n";
+
 		}
 		
 		//stop the clock
@@ -958,12 +1015,13 @@ int main( int argc, char* argv[] )
 		std::string OutFilePathS = OutFilePath; //char* to std::string
 		OutFilePathS += ".b";
 		stringstream ss;
-		ss << b;
+		if (DoMaxHL == "yes") ss << "0"; else ss << b; //append 0 or blocklength to output file name
 		OutFilePathS += ss.str();
 		
 		MyWriteNormal(OutFilePathS, chrvec, chrwritevec, SNPsizevec, midptvec, aacatvec, blockstartvec, blockendvec, ind, hapvecint, DoReduce);
 		if (MakeM == "yes") MyWriteM(OutFilePathS, chrvec, chrwritevec, midptvec, ind, hapvecint, rowlabs, DoReduce);
-		
+		if (DoMaxHL == "yes") break;
+
 	}//blocklength range		
 	
 	//wrap up write to log
