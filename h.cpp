@@ -467,7 +467,7 @@ int MyWriteNormal(std::string OutFilePathS, vector<std::string> chrvec, vector<s
 	return 0;
 }
 
-int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::string> chrwritevec, vector<std::string> midptvec, vector<std::string> ind, vector<vector<int> > hapvecint, vector<std::string> rowlabs, std::string DoReduce)
+int MyWriteM(int ploidy, std::string OutFilePathS, vector<std::string> chrvec, vector<std::string> chrwritevec, vector<std::string> midptvec, vector<std::string> ind, vector<vector<int> > hapvecint, vector<std::string> rowlabs, std::string DoReduce)
 {
 	cout << "Writing M+ output...\n";
 
@@ -484,18 +484,22 @@ int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::s
 	std::string linei;
 	std::string datai;
 	std::string foo;
-	for (unsigned int i=0;i<hapvecint.size();++i)
+	for (unsigned int i=0;i<hapvecint.size();i=i+ploidy)
 	{
 		datai.clear();
 		for (unsigned int j=0;j<hapvecint[i].size();++j)
 		{
-			//change coding of missing data value -9
-			if (hapvecint[i][j] == -9) foo = "9999";
-			else foo = to_string(hapvecint[i][j]);
+			//alternate over lines when ploidy > 1 to put haplotypes on a single line for M+
+			for (unsigned int k=0;k<ploidy;++k)
+			{
+				//change coding of missing data value -9
+				if (hapvecint[i+k][j] == -9) foo = "9999";
+				else foo = to_string(hapvecint[i+k][j]);
 			
-			//add string value to output variable
-			if (j == hapvecint[i].size() - 1) datai += foo;
-			else datai += (foo + " ");
+				//add string value to output variable, avoid trailing space on last value
+				if ( (k == ploidy-1 ) && (j == hapvecint[i+k].size() - 1) ) datai += foo;
+				else datai += (foo + " ");
+			}
 		}
 		//cout << "datai=" << datai << "\n";
 		
@@ -523,7 +527,7 @@ int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::s
 		++j;
 	}
 
-	//write the var file
+	//write the var file, correcting for ploidy
 	output.open(varfile.c_str()); //convert std::string to const char* via c_str()
 	output.close(); //quick open close done to clear any existing file each time program is run
 	output.open(varfile.c_str(), ios::out | ios::app); //open file in append mode
@@ -531,7 +535,11 @@ int MyWriteM(std::string OutFilePathS, vector<std::string> chrvec, vector<std::s
 	output << "code 0\nindividu 0\nSample 1 0 0 1 5\n"; //write var file header
 	for (unsigned int i=0;i<locnames.size();++i)
 	{
-		output << locnames[i] << " 2 1 0 1 5\n";
+		//add ploidy lines for each locus name
+		for (unsigned int k=0;k<ploidy;++k) 
+		{
+			output << locnames[i] << " 2 1 0 1 5\n";
+		}
 	}
 
 	//wrap up write var file
@@ -562,46 +570,46 @@ int main( int argc, char* argv[] )
 	for (int i=0;i<argc;i++)
 	{
 		if ( string(argv[i]) == "-i" ) 
-    	{
-        	InFilePath = argv[i+1];
+		{
+			InFilePath = argv[i+1];
 		}
 
 		if ( string(argv[i]) == "-o" ) 
-    	{
-        	OutFilePath = argv[i+1];
-        	LogFilePath = std::string(OutFilePath) + "log.txt";
- 		}
-		
-/*		if ( string(argv[i]) == "-l" ) 
-    	{
-		 	LogFilePath = argv[i+1];
+		{
+			OutFilePath = argv[i+1];
+			if ( LogFilePath.empty() ) LogFilePath = std::string(OutFilePath) + "log.txt"; //specify a default log file name, but only if it has not already been filled by -l
 		}
-*/
+		
+		if ( string(argv[i]) == "-l" ) 
+		{
+			LogFilePath = argv[i+1];
+		}
+
 		if ( string(argv[i]) == "-b" ) 
-    	{
+		{
 			bstart = strtoul( argv[i+1], NULL, 10);
 			bend = strtoul( argv[i+2], NULL, 10);
 			if ( (bstart == 0) && (bend == 0) ) DoMaxHL = "yes";
 		}
 
 		if ( string(argv[i]) == "-m" ) 
-    	{
-		 	missingchar = argv[i+1];
+		{
+			missingchar = argv[i+1];
 		}
 
 		if ( string(argv[i]) == "-p" ) 
-    	{
-		 	ploidy = atoi(argv[i+1]);
+		{
+			ploidy = atoi(argv[i+1]);
 		}
 
 		if ( string(argv[i]) == "-g" ) 
-    	{
-		 	//process command line supplied genes of interest
-		 	locs = MyProcessLocations(argv[i+1], DoReduce);
+		{
+			//process command line supplied genes of interest
+			locs = MyProcessLocations(argv[i+1], DoReduce);
 		}
 		
 		if ( string(argv[i]) == "-v" ) 
-    	{
+		{
 			MakeM = "yes";
 			PopFilePath = argv[i+1];
 		}
@@ -611,10 +619,10 @@ int main( int argc, char* argv[] )
 	//process genes of interest that are piped in
 	//test whether there is a piped list. does program see a terminal or a file/pipe as the source of the stdin?
 	if (isatty(fileno(stdin))); //puts("stdin is connected to a terminal"); //do nothing
-  	else
-  	{
-    	//puts("stdin is NOT connected to a terminal");
-    	//stdin is from a pipe, |, or file, <
+	else
+	{
+		//puts("stdin is NOT connected to a terminal");
+		//stdin is from a pipe, |, or file, <
 		std::string pipedin;
 		std::string s;
 		while (std::getline(std::cin, s))
@@ -1019,7 +1027,7 @@ int main( int argc, char* argv[] )
 		OutFilePathS += ss.str();
 		
 		MyWriteNormal(OutFilePathS, chrvec, chrwritevec, SNPsizevec, midptvec, aacatvec, blockstartvec, blockendvec, ind, hapvecint, DoReduce);
-		if (MakeM == "yes") MyWriteM(OutFilePathS, chrvec, chrwritevec, midptvec, ind, hapvecint, rowlabs, DoReduce);
+		if (MakeM == "yes") MyWriteM(ploidy, OutFilePathS, chrvec, chrwritevec, midptvec, ind, hapvecint, rowlabs, DoReduce);
 		if (DoMaxHL == "yes") break;
 
 	}//blocklength range		

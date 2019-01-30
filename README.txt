@@ -4,7 +4,7 @@ Haplotypista generates a new data matrix by combining a given number of SNPs int
 
 To compile:  use "make"
 Usage: haplotypista -i inputfile -o outputfile -b minblocklength maxblocklength -m missingdatachar -p ploidy
-      [-g genomicpositions] [-v popnamemap]
+      [-l logfile ] [-g genomicpositions] [-v popnamemap]
 
 Mandatory command line flags:
 -i    input file 
@@ -15,6 +15,7 @@ Mandatory command line flags:
 -p    ploidy, 1 = haploid, 2 = diploid, etc.
 
 Optional command line flags:
+-l    log file
 -g    genomic positions to use. Provide a comma-delimited list of the form:
       1.75000:1.1000000,14.8697509:14.8697509
       which specifies bp 75000-1000000 (inclusive) of named fragment 1 and bp 8697509 of named fragment 14.
