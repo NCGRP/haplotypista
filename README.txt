@@ -4,7 +4,7 @@ Haplotypista generates a new data matrix by combining a given number of SNPs int
 
 To compile:  use "make"
 Usage: haplotypista -i inputfile -o outputfile -b minblocklength maxblocklength -m missingdatachar -p ploidy
-      [-l logfile ] [-g genomicpositions] [-v popnamemap]
+      [-l logfile ] [-g genomicpositions] [-v popnamemap] [-x minbp maxbp]
 
 Mandatory command line flags:
 -i    input file 
@@ -15,7 +15,7 @@ Mandatory command line flags:
 -p    ploidy, 1 = haploid, 2 = diploid, etc.
 
 Optional command line flags:
--l    log file
+-l    specify a log file name other than the default
 -g    genomic positions to use. Provide a comma-delimited list of the form:
       1.75000:1.1000000,14.8697509:14.8697509
       which specifies bp 75000-1000000 (inclusive) of named fragment 1 and bp 8697509 of named fragment 14.
@@ -23,10 +23,13 @@ Optional command line flags:
       without invoking the -g option.  If both are supplied, the piped list will be used.
 -v    write m+ input files (.var and .dat) for recoded matrices, required argument is a path
       to a file containing a line break delimited list that maps sample names to populations.
-      
+-x    filter haplotype blocks by physical length, include in output only those blocks >= minbp and
+      <= maxbp.
+
 
 Examples: ./haplotypista -i hexin.txt -o hexout -b 2 4 -m ? -p 1
           ./haplotypista -i AtExample.txt -o AtExout -b 5 8 -m ? -p 1
+          ./haplotypista -i AtExample.txt -o AtExout1 -b 5 8 -m ? -p 1 -x 1 10000
           ./haplotypista -i PopulusExample.txt -o PopExout -b 1 4 -m ? -p 2 
           ./haplotypista -i PopulusExample.txt -o PopEx2out -b 1 4 -m ? -p 2 -g 1.75000:1.1000000,14.8697509:14.8697509 -v Poppopid.txt
           echo "2.1:2.10000000" | ./haplotypista -i AtExample.txt -o AtEx2out -b 5 8 -m ? -p 1 -v Atpopid.txt

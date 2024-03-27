@@ -561,12 +561,15 @@ int main( int argc, char* argv[] )
 	std::string LogFilePath;
 	unsigned long bstart;
 	unsigned long bend; //start and end for range of block lengths
+	unsigned long long minbp;
+	unsigned long long maxbp; //specify physical block lengths allowed
 	std::string missingchar;
 	int ploidy;
 	vector <Location> locs; //holds ranges for genomic regions of interest
 	std::string DoReduce = "no"; //reduce data set size to just those regions specified by -g or piped in
 	std::string MakeM = "no"; //make M+ output files
 	std::string DoMaxHL = "no"; //combine all SNPs from each fragment into a single haplotype block (maximum haplotype length)
+	std::string FilterBySize = "no"; //the -x option has not been invoked, so include haplotype blocks of any physical length
 	for (int i=0;i<argc;i++)
 	{
 		if ( string(argv[i]) == "-i" ) 
@@ -612,6 +615,13 @@ int main( int argc, char* argv[] )
 		{
 			MakeM = "yes";
 			PopFilePath = argv[i+1];
+		}
+		
+		if ( string(argv[i]) == "-x" ) 
+		{
+			FilterBySize = "yes";
+			minbp = strtoull( argv[i+1], NULL, 10);
+			maxbp = strtoull( argv[i+2], NULL, 10);
 		}
 
 	}
@@ -850,76 +860,83 @@ int main( int argc, char* argv[] )
 								//A truncated fusion product may remain!!
 				}
 		
-				//calculate length of SNP region fused, the midpoint of haplotype block, and the frequency of non-genic, non-synonymous, and synonymous SNPs in the block
-				//add to vectors
-				//do this only for individual #1, since it is the same for all
-				if (i == 3)
+				//calculate length of SNP region fused
+				unsigned long long endpos = posull[j-2]; //determine the end position, it is the previous SNP, (j-1)-1 = j-2
+				unsigned long long SNPlen = endpos - startpos + 1; //+1 to include the SNP position on both ends
+				
+				//if -x option is invoked, only include blocks within the specified physical length range
+				//if -x is not invoked, include all blocks
+				if ( ( (SNPlen > minbp) && (SNPlen < maxbp) ) || (FilterBySize == "no") )
 				{
-					//calculate length
-					unsigned long long endpos = posull[j-2];//determine the end position, it is the previous SNP, (j-1)-1 = j-2
-					unsigned long long SNPlen = endpos - startpos + 1;  //+1 to include the SNP position on both ends
-					if ( SNPlen > maxpos ) 
+					//calculate the midpoint of haplotype block, and the frequency of non-genic, non-synonymous, and synonymous SNPs in the block
+					//add to vectors
+					//do this only for individual #1, since it is the same for all
+					if (i == 3)
 					{
-						cout << "An error has occurred. endpos="<<endpos<<", startpos="<<startpos<<", SNPlen="<<SNPlen<<"\n  SNP order may not be consecutive.\n";
-					}
+						if ( SNPlen > maxpos ) 
+						{
+							cout << "An error has occurred. endpos="<<endpos<<", startpos="<<startpos<<", SNPlen="<<SNPlen<<"\n  SNP order may not be consecutive.\n";
+						}
 				
-					//calculate midpt
-					unsigned long long midpt = startpos+(SNPlen/2);
-				
-					//calculate amino acid category code frequencies
-					unsigned long long ng = std::count(newaacats.begin(), newaacats.end(), '0'); //number of non-genic SNPs contained in the haplotype block
-					unsigned long long syn = std::count(newaacats.begin(), newaacats.end(), '1'); //number of synonymous SNPs contained in the haplotype block
-					unsigned long long ns = std::count(newaacats.begin(), newaacats.end(), '2'); //number of non-synonymous SNPs contained in the haplotype block
-				
-					//test whether the number of SNPs included in the haplotype is equal to the blocklength, i.e. is the haplotype truncated?
-					//if the haplotype is not truncated, include it in the output
+						//calculate midpt
+						unsigned long long midpt = startpos+(SNPlen/2);
+			
+						//calculate amino acid category code frequencies
+						unsigned long long ng = std::count(newaacats.begin(), newaacats.end(), '0'); //number of non-genic SNPs contained in the haplotype block
+						unsigned long long syn = std::count(newaacats.begin(), newaacats.end(), '1'); //number of synonymous SNPs contained in the haplotype block
+						unsigned long long ns = std::count(newaacats.begin(), newaacats.end(), '2'); //number of non-synonymous SNPs contained in the haplotype block
+			
+						//test whether the number of SNPs included in the haplotype is equal to the blocklength, i.e. is the haplotype truncated?
+						//if the haplotype is not truncated, include it in the output
+						if (newallele.length() == b)
+						{
+							//cout << startchr << "\t" << j << "\t" << startpos << "\t" << endpos << "\t" << SNPlen << "\t" << midpt << "\n";
+	
+							//add the block length to SNPsizevec
+							stringstream ss;
+							ss << SNPlen;
+							string str = ss.str();
+							SNPsizevec.push_back(str);
+			
+							//add the midpoint of the haplotype block to midptvec
+							stringstream sd;
+							sd << midpt;
+							str = sd.str();
+							midptvec.push_back(str);
+			
+							//add the amino acid category codes to aacatvec
+							stringstream se;
+							se << ng << ":" << syn << ":" << ns;
+							str = se.str();
+							aacatvec.push_back(str);
+					
+							//add the position of the first SNP in block to blockstartvec
+							stringstream sf;
+							sf << startpos;
+							str = sf.str();
+							blockstartvec.push_back(str);
+					
+							//add the position of the last SNP in block to blockendvec
+							stringstream sg;
+							sg << endpos;
+							str = sg.str();
+							blockendvec.push_back(str);
+					
+							//make note of the chromosomal location of the new fusion product
+							chrvec.push_back(startchr);
+							if (DoReduce == "yes") chrwritevec.push_back(startchrwrite);
+						}
+					} //for indiv #1 only
+		
+					//add the new fused allele to the data for this individual
+					//but only if any restrictions on physical length imposed by -x are obeyed (KeepBlock = "yes")
+					//and the fusion product is not truncated
+					cout << "b=" << b << "\t" << "newaacats.length()=" << newaacats.length() << "\t" << "newallele.length()=" << newallele.length() << "\n";
 					if (newallele.length() == b)
 					{
-						//cout << startchr << "\t" << j << "\t" << startpos << "\t" << endpos << "\t" << SNPlen << "\t" << midpt << "\n";
-		
-						//add the block length to SNPsizevec
-						stringstream ss;
-						ss << SNPlen;
-						string str = ss.str();
-						SNPsizevec.push_back(str);
-				
-						//add the midpoint of the haplotype block to midptvec
-						stringstream sd;
-						sd << midpt;
-						str = sd.str();
-						midptvec.push_back(str);
-				
-						//add the amino acid category codes to aacatvec
-						stringstream se;
-						se << ng << ":" << syn << ":" << ns;
-						str = se.str();
-						aacatvec.push_back(str);
-						
-						//add the position of the first SNP in block to blockstartvec
-						stringstream sf;
-						sf << startpos;
-						str = sf.str();
-						blockstartvec.push_back(str);
-						
-						//add the position of the last SNP in block to blockendvec
-						stringstream sg;
-						sg << endpos;
-						str = sg.str();
-						blockendvec.push_back(str);
-						
-						//make note of the chromosomal location of the new fusion product
-						chrvec.push_back(startchr);
-						if (DoReduce == "yes") chrwritevec.push_back(startchrwrite);
+						hapvec[i-3].push_back(newallele);
 					}
-				}
-		
-				//add the new fused allele to the data for this individual
-				//but only if the fusion product is not truncated
-				//cout << "b=" << b << "newaacats.length()=" << newaacats.length() << "\t" << "newallele.length()=" << newallele.length() << "\n";
-				if (newallele.length() == b)
-				{
-					hapvec[i-3].push_back(newallele);
-				}
+				}//if pass -x size restrictions
 			}//snp
 		}//individual
 		
