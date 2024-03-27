@@ -931,7 +931,7 @@ int main( int argc, char* argv[] )
 					//add the new fused allele to the data for this individual
 					//but only if any restrictions on physical length imposed by -x are obeyed (KeepBlock = "yes")
 					//and the fusion product is not truncated
-					cout << "b=" << b << "\t" << "newaacats.length()=" << newaacats.length() << "\t" << "newallele.length()=" << newallele.length() << "\n";
+					//cout << "b=" << b << "\t" << "newaacats.length()=" << newaacats.length() << "\t" << "newallele.length()=" << newallele.length() << "\n";
 					if (newallele.length() == b)
 					{
 						hapvec[i-3].push_back(newallele);
