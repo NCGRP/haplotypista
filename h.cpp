@@ -866,7 +866,7 @@ int main( int argc, char* argv[] )
 				
 				//if -x option is invoked, only include blocks within the specified physical length range
 				//if -x is not invoked, include all blocks
-				if ( ( (SNPlen > minbp) && (SNPlen < maxbp) ) || (FilterBySize == "no") )
+				if ( ( (SNPlen >= minbp) && (SNPlen <= maxbp) ) || (FilterBySize == "no") )
 				{
 					//calculate the midpoint of haplotype block, and the frequency of non-genic, non-synonymous, and synonymous SNPs in the block
 					//add to vectors
